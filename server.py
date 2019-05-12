@@ -1,3 +1,4 @@
+
 import socket
 import threading
 from api import *
@@ -76,7 +77,8 @@ def checkQueue():
         print("[*] Check Queue")
         client1 = clientQueue.dequeue()
         client2 = clientQueue.dequeue()
-
+        print("[*] Client 1 = %s"%(client1))
+        print("[*] Client 2 = %s"%(client2))
         client1.setTryClient(client2)
         client2.setTryClient(client1)
 

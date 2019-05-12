@@ -274,7 +274,7 @@ def Game():
         text.draw(canvas)
         try:
             tcp.connect(server)
-            tcp.settimeout(0.9)
+            #tcp.settimeout(0.9)
             estadoNet = NET.BUSCANDO_ADVERSARIO
             return True
         except:
@@ -285,32 +285,31 @@ def Game():
         global estadoNet
         text.draw(canvas)
         count = 0
-        while(count < 10):
+            
+        sendP2PMessage(tcp, 'AVAILABLE')
+
+        while count<10:
             count += 1
-            sendP2PMessage(tcp, 'AVAILABLE')
+            response = getP2PMessage(tcp)
+            response = response.split()
+            print(response[0]);
+            if (response[0] == 'TRY_CONNECTION' and len(response) == 3):
+                oppConnMode = response[0]
+                sendP2PMessage(tcp, 'TRYING_TO_PLAY')
+                opponentAddr[0] = response[1]
+                opponentAddr[1] = response[2]
+                estadoNet = NET.ADVERSARIO_ENCONTRADO
+                return True
+            elif (response[0] == 'WAIT_CONNECTION' and len(response) == 3):
+                oppConnMode = response[0]
+                sendP2PMessage(tcp, 'TRYING_TO_PLAY')
+                opponentAddr[0] = response[1]
+                opponentAddr[1] = response[2]
+                estadoNet = NET.ADVERSARIO_ENCONTRADO
+                return True
+            time.sleep(2);
 
-            while True:
-                try:
-                    response = getP2PMessage(tcp)
-                    response = response.split()
-
-                    if (response[0] == 'TRY_CONNECTION' and len(response) == 3):
-                        oppConnMode = response[0]
-                        sendP2PMessage(tcp, 'TRYING_TO_PLAY')
-                        opponentAddr[0] = response[1]
-                        opponentAddr[1] = response[2]
-                        estadoNet = NET.ADVERSARIO_ENCONTRADO
-                        return True
-                    elif (response[0] == 'WAIT_CONNECTION' and len(response) == 3):
-                        oppConnMode = response[0]
-                        sendP2PMessage(tcp, 'TRYING_TO_PLAY')
-                        opponentAddr[0] = response[1]
-                        opponentAddr[1] = response[2]
-                        estadoNet = NET.ADVERSARIO_ENCONTRADO
-                        return True
-
-                except:
-                    break
+               
         return False
 
     def conectaAdversario(text):
@@ -361,7 +360,6 @@ def Game():
             text = Text(Point(WIDTH/2, 2*HEIGHT/3), "Buscando adversário.")
             time.sleep(2)
             ok = buscaAdversario(text)
-            #ok = True;
             if(not ok):
                 text.setText("Nenhum adversário encontrado, tente novamente mais tarde.")
                 time.sleep(2)
