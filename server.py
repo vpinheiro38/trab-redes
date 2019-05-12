@@ -16,25 +16,27 @@ tcp.listen(5)
 print ('[*] Escutando %s:%d' %(bind_ip,bind_port))
 
 def getClientP2PMessage(conn):
-    try: return conn.recv(sizeofmessage)
+    try: return conn.recv(sizeofmessage).decode()
     except: return ''
 
 def sendClientP2PMessage(conn, message):
-    try: conn.send(message)
+    try: conn.send(message.encode())
     except: print('[*] Mensagem não enviada - %s' %message)
 
 def checkClientMessage(clientThread, client_socket, message, addr):
     msg = message.split()
-    if (msg[0] == 'AVAILABLE'):
-        client = Client(msg[1], addr, client_socket)
-        if clientQueue.enqueue(client):
+    if (msg[0] == 'AVAILABLE' and clientThread == None):
+        client = Client(addr, client_socket)
+        if (clientQueue.enqueue(client)):
             print('[*] Cliente %s:%d disponível\n' %(addr[0], addr[1]))
             checkQueue()
         return client, False
+
     elif msg[0] == 'PLAYING':
         client_socket.close()
         print('[*] Fechando conexão com %s:%d' %(addr[0], addr[1]))
         return clientThread, True
+    
     elif msg[0] == 'ERROR':
         if (msg[1] == '0' and clientThread != None):
             clientQueue.enqueue(clientThread)
@@ -43,6 +45,8 @@ def checkClientMessage(clientThread, client_socket, message, addr):
             clientThread.getTryClient().setTryClient(None)
 
             print('[*] Cliente %s:%d não conseguiu se conectar com jogador\n' %(addr[0], addr[1]))
+
+            checkQueue()
 
     return clientThread, False
 
@@ -56,20 +60,15 @@ def handle_client(client_socket, addr):
         print ('[*] Recebido: %s' %request)
         
         clientThread, close = checkClientMessage(clientThread, client_socket, request, addr)
-        
-        msg = ('ACK - %s' %request)
-        byte = msg.encode()
-        try:
-            client_socket.send(byte)
-        except:
-            return
 
 def makeAvailability(client1, client2):
     ip1 = client1.getIP()
-    name1 = client1.getName()
+    port1 = client1.getPort()
+    conn1 = client1.getServerConnection()
     conn2 = client2.getServerConnection()
 
-    sendClientP2PMessage(conn2, 'TRY_CONNECTION %s %s' %(name1, ip1))
+    sendClientP2PMessage(conn1, 'WAIT_CONNECTION %s %s' %(ip1, port1))
+    sendClientP2PMessage(conn2, 'TRY_CONNECTION %s %s' %(ip1, port1))
 
 def checkQueue():
     threadLock.acquire()

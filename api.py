@@ -26,13 +26,9 @@ class Queue:
                 return a
         
 class Client:
-    def __init__(self, name, addr, server_conn):
-        self.name = name
+    def __init__(self, addr, server_conn):
         self.addr = addr
         self.server_conn = server_conn
-
-    def getName(self):
-        return self.name
     
     def getIP(self):
         return self.addr[0]
