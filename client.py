@@ -38,7 +38,7 @@ class NET(Enum):
     ADVERSARIO_ENCONTRADO = 6
     PRONTO_PARA_JOGAR = 7
 
-class estados(Enum):
+class gameState(Enum):
     PLAYING = 1
     EMPATE = 2
     X_GANHOU = 3
@@ -179,18 +179,18 @@ def Game():
                     
 
         message.setSize(TEXT_SIZE-20)
-        if (estadoAtual == estados.PLAYING):
+        if (estadoAtual == gameState.PLAYING):
             message.setSize(TEXT_SIZE)
             if (jogadorAtual == Cell.X):
                 message.setText("Vez do X")
             else:
                message.setText("Vez da O")
             
-        elif (estadoAtual == estados.EMPATE):
+        elif (estadoAtual == gameState.EMPATE):
             message.setText("É um empate! Clique para jogar novamente.")
-        elif (estadoAtual == estados.X_GANHOU):
+        elif (estadoAtual == gameState.X_GANHOU):
             message.setText("'O' Ganhou! Clique para jogar novamente.")
-        elif (estadoAtual == estados.O_GANHOU):
+        elif (estadoAtual == gameState.O_GANHOU):
             message.setText("'X' Ganhou! Clique para jogar novamente.")
         message.setFace("arial")
         message.undraw();
@@ -204,7 +204,7 @@ def Game():
         colunaunaSelecionada= int(pos.getX() / CELL_SIZE)
         linhaSelecionada = int(pos.getY() / CELL_SIZE)
  
-        if estadoAtual == estados.PLAYING:
+        if estadoAtual == gameState.PLAYING:
             if (linhaSelecionada >= 0 and linhaSelecionada < LINHAS and colunaunaSelecionada >= 0 and colunaunaSelecionada < COLUNAS 
             and tabuleiro[linhaSelecionada][colunaunaSelecionada] == Cell.EMPTY):
                 updateGame(jogadorAtual, linhaSelecionada, colunaunaSelecionada)
@@ -220,7 +220,7 @@ def Game():
         
         limpaTela()
 
-        estadoAtual = estados.PLAYING
+        estadoAtual = gameState.PLAYING
         jogadorAtual = Cell.X
         row = [Cell.EMPTY]*LINHAS
         tabuleiro = [list(row) for i in range(COLUNAS)]
@@ -234,9 +234,9 @@ def Game():
         global message
         tabuleiro[linha][coluna] = player
         if (ganhou(player, linha, coluna)):
-            estadoAtual = (estados.X_GANHOU, estados.O_GANHOU)[player == Cell.X]
+            estadoAtual = (gameState.X_GANHOU, gameState.O_GANHOU)[player == Cell.X]
         elif (empatou()):
-            estadoAtual = estados.EMPATE
+            estadoAtual = gameState.EMPATE
         jogadorAtual = (Cell.X,Cell.O)[player == Cell.X]
         drawCanvas()
 
@@ -361,7 +361,7 @@ def Game():
             text = Text(Point(WIDTH/2, 2*HEIGHT/3), "Buscando adversário.")
             time.sleep(2)
             ok = buscaAdversario(text)
-
+            #ok = True;
             if(not ok):
                 text.setText("Nenhum adversário encontrado, tente novamente mais tarde.")
                 time.sleep(2)

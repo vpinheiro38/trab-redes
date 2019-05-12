@@ -9,7 +9,12 @@ O projeto roda uma simples aplicação gráfica em **Python 3** de um jogo da ve
 	apt-get install python3-tk
 	``` 
 # Uso
-Para usar a aplicação basta rodar o comando 
+Para usar a aplicação basta rodar o comando:
 ```bash
-python3 main.py
+python3 client.py
 ``` 
+para os clientes e:
+```bash
+python3 server.py
+``` 
+para o servidor.
