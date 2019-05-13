@@ -77,11 +77,12 @@ def connectAsClientP2P(ip, port):
     time.sleep(1.5)
     
     try:
-        connection = client.connect((ip, port))
+        client.connect((ip, port))
+        client.setblocking(False)
         print('connect')
         # sendP2PMessage(client, 'CONNECTED')
         # response = getP2PMessage(client)
-        return connection, True
+        return client, True
     except:
         return None, False
 
@@ -93,8 +94,9 @@ def createServerP2P(ip, port):
     clientTcp.settimeout(10)
 
     try:
-        connection = clientTcp.accept()
+        connection, addr = clientTcp.accept()
         print('accept')
+        connection.setblocking(False)
     except:
         return None, False
 
@@ -102,7 +104,7 @@ def createServerP2P(ip, port):
 
 def Game():
     global estadoNet
-    global message 
+    global message, oppConn, oppConnMode
     canvas = GraphWin("Jogo da Velha", WIDTH, HEIGHT+TEXT_SIZE)
     canvas.setBackground("white")
     message = Text(Point(WIDTH/2,HEIGHT+TEXT_SIZE/2), " ")
@@ -187,10 +189,16 @@ def Game():
         message.setSize(TEXT_SIZE-20)
         if (estadoAtual == gameState.PLAYING):
             message.setSize(TEXT_SIZE)
-            if (jogadorAtual == Cell.X):
-                message.setText("Vez do X")
-            else:
-               message.setText("Vez da O")
+            if (oppConnMode == 'TRY_CONNECTION'):
+                if (jogadorAtual == Cell.X):
+                    message.setText("Sua vez - X")
+                else:
+                    message.setText("Vez do oponente - O")
+            elif (oppConnMode == 'WAIT_CONNECTION'):
+                if (jogadorAtual == Cell.O):
+                    message.setText("Sua vez - O")
+                else:
+                    message.setText("Vez do oponente - X")
             
         elif (estadoAtual == gameState.EMPATE):
             message.setText("É um empate! Clique para jogar novamente.")
@@ -198,6 +206,7 @@ def Game():
             message.setText("'O' Ganhou! Clique para jogar novamente.")
         elif (estadoAtual == gameState.O_GANHOU):
             message.setText("'X' Ganhou! Clique para jogar novamente.")
+
         message.setFace("arial")
         message.undraw();
         message.draw(canvas);
@@ -205,18 +214,19 @@ def Game():
     
     def onClick(pos):
         global tabuleiro
-        global estadoAtual
+        global estadoAtual, oppConn
         print(estadoAtual)
-        colunaunaSelecionada= int(pos.getX() / CELL_SIZE)
+        colunaSelecionada= int(pos.getX() / CELL_SIZE)
         linhaSelecionada = int(pos.getY() / CELL_SIZE)
  
         if estadoAtual == gameState.PLAYING:
-            if (linhaSelecionada >= 0 and linhaSelecionada < LINHAS and colunaunaSelecionada >= 0 and colunaunaSelecionada < COLUNAS 
-            and tabuleiro[linhaSelecionada][colunaunaSelecionada] == Cell.EMPTY):
-                updateGame(jogadorAtual, linhaSelecionada, colunaunaSelecionada)
+            if (linhaSelecionada >= 0 and linhaSelecionada < LINHAS and colunaSelecionada >= 0 and colunaSelecionada < COLUNAS 
+            and tabuleiro[linhaSelecionada][colunaSelecionada] == Cell.EMPTY):
+                updateGame(jogadorAtual, linhaSelecionada, colunaSelecionada)
                 
             
         else:
+            sendP2PMessage(oppConn, 'PLAY_AGAIN')
             initGame()
 
     def initGame():
@@ -233,17 +243,45 @@ def Game():
         drawCanvas()
 
     def updateGame(player, linha, coluna):
-        global estadoAtual 
-        global jogadorAtual
-        global tabuleiro
-        global estadoAtual
-        global message
+        global estadoAtual, jogadorAtual, tabuleiro
+        global message, oppConn
+
+        sendP2PMessage(oppConn, 'CLICKED %s %s' %(linha, coluna))
         tabuleiro[linha][coluna] = player
+
         if (ganhou(player, linha, coluna)):
             estadoAtual = (gameState.X_GANHOU, gameState.O_GANHOU)[player == Cell.X]
         elif (empatou()):
             estadoAtual = gameState.EMPATE
-        jogadorAtual = (Cell.X,Cell.O)[player == Cell.X]
+        else:
+            jogadorAtual = (Cell.X,Cell.O)[player == Cell.X]
+        drawCanvas()
+
+
+    def updateWaitGame(response):
+        global estadoAtual, jogadorAtual, tabuleiro
+        global message, oppConn, oppConnMode
+
+        linha = 0
+        coluna = 0
+        response = response.split()
+        if (len(response) == 3 and response[0] == 'CLICKED'):
+            linha = int(response[1])
+            coluna = int(response[2])
+        
+        if (oppConnMode == 'WAIT_CONNECTION'):
+            player = Cell.X
+        else:
+            player = Cell.O
+
+        tabuleiro[linha][coluna] = player
+
+        if (ganhou(player, linha, coluna)):
+            estadoAtual = (gameState.X_GANHOU, gameState.O_GANHOU)[player == Cell.X]
+        elif (empatou()):
+            estadoAtual = gameState.EMPATE
+        else:
+            jogadorAtual = (Cell.X,Cell.O)[player == Cell.X]
         drawCanvas()
 
     def ganhou(player, linha, coluna):
@@ -393,7 +431,29 @@ def Game():
         else:
             initGame()
             while(True):
-                onClick(canvas.getMouse())
-    
+                if (estadoAtual == gameState.PLAYING):
+                    if (oppConnMode == 'TRY_CONNECTION'):
+                        if (jogadorAtual == Cell.X):
+                            onClick(canvas.getMouse())
+                        else:
+                            response = getP2PMessage(oppConn)
+                            if not response: continue
+                            updateWaitGame(response)
+                    elif (oppConnMode == 'WAIT_CONNECTION'):
+                        if (jogadorAtual == Cell.O):
+                            onClick(canvas.getMouse())
+                        else:
+                            response = getP2PMessage(oppConn)
+                            if not response: continue
+                            updateWaitGame(response)
+                else:                    
+                    response = getP2PMessage(oppConn)
+                    if response:
+                        response = response.split()
+                        if (len(response) == 1 and response[0] == 'PLAY_AGAIN'):
+                            initGame()
+                            continue
+
+                    onClick(canvas.getMouse())
 
 Game()
