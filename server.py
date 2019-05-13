@@ -28,9 +28,9 @@ def checkClientMessage(clientThread, client_socket, message, addr):
     msg = message.split()
     if (msg[0] == 'AVAILABLE' and clientThread == None):
         client = Client(addr, client_socket)
-        if (clientQueue.enqueue(client)):
-            print('[*] Cliente %s:%d disponível\n' %(addr[0], addr[1]))
-            checkQueue()
+        clientQueue.enqueue(client)
+        print('[*] Cliente %s:%d disponível\n' %(addr[0], addr[1]))
+        checkQueue()
         return client, False
 
     elif msg[0] == 'PLAYING':
@@ -56,33 +56,63 @@ def handle_client(client_socket, addr):
     clientThread = None
     
     while close == False:
-        request = client_socket.recv(1024)
-        request = request.decode()
+        request = getClientP2PMessage(client_socket)
         print ('[*] Recebido: %s' %request)
         
-        clientThread, close = checkClientMessage(clientThread, client_socket, request, addr)
+        if request != '':
+            clientThread, close = checkClientMessage(clientThread, client_socket, request, addr)
+        else:
+            close = True
+
+    clientQueue.delete(clientThread)
+    client_socket.close()
+
+    for i in clientQueue.queue:
+        print('%s %s' %(i.getIP(), i.getPort()), end=' - ')
 
 def makeAvailability(client1, client2):
+    global clientQueue
     ip1 = client1.getIP()
     port1 = client1.getPort()
     conn1 = client1.getServerConnection()
     conn2 = client2.getServerConnection()
 
-    sendClientP2PMessage(conn1, 'WAIT_CONNECTION %s %s' %(ip1, port1))
-    sendClientP2PMessage(conn2, 'TRY_CONNECTION %s %s' %(ip1, port1))
+    try:
+        sendClientP2PMessage(conn1, 'WAIT_CONNECTION %s %s' %(ip1, port1))
+    except:
+        clientQueue.delete(client1)
+        return False
+    try:
+        sendClientP2PMessage(conn2, 'TRY_CONNECTION %s %s' %(ip1, port1))
+    except:
+        clientQueue.delete(client2)
+        return False
+
+    return True
 
 def checkQueue():
+    global clientQueue
     threadLock.acquire()
+    
+    print("Len: %d" %len(clientQueue.queue))
+    
     if (clientQueue.size() > 1):
-        print("[*] Check Queue")
-        client1 = clientQueue.dequeue()
-        client2 = clientQueue.dequeue()
-        print("[*] Client 1 = %s"%(client1))
-        print("[*] Client 2 = %s"%(client2))
-        client1.setTryClient(client2)
-        client2.setTryClient(client1)
+        success = False
+        while success == False:
+            print("[*] Check Queue")
+    
+            client1 = clientQueue.dequeue()
+            client2 = clientQueue.dequeue()
 
-        makeAvailability(client1, client2)
+            if (client1 == False or client2 == False):
+                return
+            
+            client1.setTryClient(client2)
+            client2.setTryClient(client1)
+
+            success = makeAvailability(client1, client2)
+    
+    print("Len: %d" %len(clientQueue.queue))
     threadLock.release()
 
 while True:

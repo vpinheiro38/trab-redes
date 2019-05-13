@@ -5,14 +5,16 @@ class Queue:
     def enqueue(self, data):
         if data not in self.queue:
             self.queue.insert(0,data)
-            return True
-        
-        return True
 
     def dequeue(self):
-        if len(self.queue) > 0:
+        if (len(self.queue) > 0):
             return self.queue.pop()
+            
         return False
+
+    def delete(self, socket):
+        for i in range(self.queue.count(socket)):
+            self.queue.remove(socket)
 
     def size(self):
         return len(self.queue)

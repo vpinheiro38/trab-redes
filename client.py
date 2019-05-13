@@ -6,11 +6,13 @@ import socket
 sizeofmessage = 1024
 HOST = 'localhost'     # Endereco IP do Servidor
 PORT = 5100            # Porta que o Servidor esta
-tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+tcp = None
+clientTcp = None
 server = (HOST, PORT)
 
 opponentAddr = [None, None]
 oppConnMode = 'TRY_CONNECTION' # Como o cliente irá se conectar com o oponente (enviar ou receber conexão)
+oppConn = None
 
 estadoNet = None
 jogadorAtual = None
@@ -62,36 +64,39 @@ class Cell(Enum):
 # MENSAGENS SOBRE JOGADAS
 
 def getP2PMessage(client):
-    return client.recv(sizeofmessage).decode()
+    try:
+        return client.recv(sizeofmessage).decode()
+    except:
+        return False
 
 def sendP2PMessage(client, message):
     client.send(message.encode())
 
-def connectAsClientP2P(IP, port):
-    client = socket.socket()
+def connectAsClientP2P(ip, port):
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    time.sleep(1.5)
+    
     try:
-        client.connect((IP, port))
-        client.send("CONNECTED")
-        response = getP2PMessage(client)
-        if (response[0] == 'CONNECTED'):
-            return client, True
-        else:
-            return None, False
+        client.connect((ip, port))
+        print('connect')
+        # sendP2PMessage(client, 'CONNECTED')
+        # response = getP2PMessage(client)
     except:
         return None, False
 
-def createServerP2P(IP, port):
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind((IP, port))
-    server.listen(5)
+def createServerP2P(ip, port):
+    global clientTcp
+    clientTcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    clientTcp.bind((ip, port))
+    clientTcp.listen(5)
+    clientTcp.settimeout(10)
 
-    connection = server.accept()
     try:
-        response = getP2PMessage()
-        if response == "CONNECTED": 
-            sendP2PMessage(connection, 'CONNECTED')
+        connection = clientTcp.accept()
+        print('accept')
     except:
         return None, False
+
     return connection, True
 
 def Game():
@@ -271,10 +276,12 @@ def Game():
 
     def esperaServidor(text):
         global estadoNet
+        global tcp
         text.draw(canvas)
         try:
+            tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             tcp.connect(server)
-            #tcp.settimeout(0.9)
+            tcp.settimeout(10)
             estadoNet = NET.BUSCANDO_ADVERSARIO
             return True
         except:
@@ -283,55 +290,57 @@ def Game():
 
     def buscaAdversario(text):
         global estadoNet
+        global tcp, oppConnMode, opponentAddr
         text.draw(canvas)
         count = 0
             
         sendP2PMessage(tcp, 'AVAILABLE')
 
-        while count<10:
-            count += 1
-            response = getP2PMessage(tcp)
-            response = response.split()
-            print(response[0]);
-            if (response[0] == 'TRY_CONNECTION' and len(response) == 3):
-                oppConnMode = response[0]
-                sendP2PMessage(tcp, 'TRYING_TO_PLAY')
-                opponentAddr[0] = response[1]
-                opponentAddr[1] = response[2]
-                estadoNet = NET.ADVERSARIO_ENCONTRADO
-                return True
-            elif (response[0] == 'WAIT_CONNECTION' and len(response) == 3):
-                oppConnMode = response[0]
-                sendP2PMessage(tcp, 'TRYING_TO_PLAY')
-                opponentAddr[0] = response[1]
-                opponentAddr[1] = response[2]
-                estadoNet = NET.ADVERSARIO_ENCONTRADO
-                return True
-            time.sleep(2);
+        response = getP2PMessage(tcp)
+        if (response == False):
+            return False
 
-               
+        response = response.split()
+        print(response[0]);
+        if (response[0] == 'TRY_CONNECTION' and len(response) == 3):
+            oppConnMode = response[0]
+            sendP2PMessage(tcp, 'TRYING_TO_PLAY')
+            opponentAddr[0] = response[1]
+            opponentAddr[1] = response[2]
+            estadoNet = NET.ADVERSARIO_ENCONTRADO
+            return True
+        elif (response[0] == 'WAIT_CONNECTION' and len(response) == 3):
+            oppConnMode = response[0]
+            sendP2PMessage(tcp, 'TRYING_TO_PLAY')
+            opponentAddr[0] = response[1]
+            opponentAddr[1] = response[2]
+            estadoNet = NET.ADVERSARIO_ENCONTRADO
+            return True
+
         return False
 
     def conectaAdversario(text):
         global estadoNet
+        global tcp, oppConnMode, opponentAddr, oppConn
         text.draw(canvas)
-        count = 0
-        while(count < 0):
-            count += 1
-            
-            if (oppConnMode == 'TRY_CONNECTION'):
-                client, success = connectAsClientP2P(opponentAddr[0], opponentAddr[1])
-            elif (oppConnMode == 'WAIT_CONNECTION'):
-                client, success = createServerP2P('localhost', PORT)
+        
+        if (oppConnMode == 'TRY_CONNECTION'):
+            client, success = connectAsClientP2P(opponentAddr[0], opponentAddr[1])
+        elif (oppConnMode == 'WAIT_CONNECTION'):
+            client, success = createServerP2P('localhost', PORT)
 
-            if(success == True):
-                oppConn = client
-                estadoNet = NET.PRONTO_PARA_JOGAR
-                return True
+        if(success == True):
+            oppConn = client
+            sendP2PMessage(tcp, 'PLAYING')
+            tcp.close()
+            estadoNet = NET.PRONTO_PARA_JOGAR
+            return True
+        
         return False
 
     while(True):
         limpaTela()
+
         if(estadoNet == NET.INICIO):
             iniciarJogo = Rectangle(Point(WIDTH/2-100, 2*HEIGHT/3-50), Point(WIDTH/2+100, 2*HEIGHT/3+50))
             iniciarJogo.setWidth(3)
@@ -362,6 +371,9 @@ def Game():
             ok = buscaAdversario(text)
             if(not ok):
                 text.setText("Nenhum adversário encontrado, tente novamente mais tarde.")
+                global tcp
+                tcp.close()
+                tcp = None
                 time.sleep(2)
                 estadoNet = NET.INICIO
 
