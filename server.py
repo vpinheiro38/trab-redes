@@ -72,8 +72,8 @@ def handle_client(client_socket, addr):
 
 def makeAvailability(client1, client2):
     global clientQueue
-    ip1 = client1.getIP()
-    port1 = client1.getPort()
+    ip1 = client2.getIP()
+    port1 = 5101
     conn1 = client1.getServerConnection()
     conn2 = client2.getServerConnection()
 

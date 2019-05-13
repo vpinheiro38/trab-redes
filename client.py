@@ -77,10 +77,11 @@ def connectAsClientP2P(ip, port):
     time.sleep(1.5)
     
     try:
-        client.connect((ip, port))
+        connection = client.connect((ip, port))
         print('connect')
         # sendP2PMessage(client, 'CONNECTED')
         # response = getP2PMessage(client)
+        return connection, True
     except:
         return None, False
 
@@ -323,11 +324,11 @@ def Game():
         global estadoNet
         global tcp, oppConnMode, opponentAddr, oppConn
         text.draw(canvas)
-        
+        print(opponentAddr[1])
         if (oppConnMode == 'TRY_CONNECTION'):
-            client, success = connectAsClientP2P(opponentAddr[0], opponentAddr[1])
+            client, success = connectAsClientP2P(opponentAddr[0], int(opponentAddr[1]))
         elif (oppConnMode == 'WAIT_CONNECTION'):
-            client, success = createServerP2P('localhost', PORT)
+            client, success = createServerP2P('localhost', int(opponentAddr[1]))
 
         if(success == True):
             oppConn = client
