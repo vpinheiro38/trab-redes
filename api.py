@@ -49,3 +49,19 @@ class Client:
 
     def getTryClient(self):
         return self.tryclient
+
+def getP2PMessage(client):
+    try:
+        return client.recv(1024).decode()
+    except ConnectionResetError or ConnectionError or ConnectionAbortedError:
+        return 'CLOSE_CONNECTION'
+    except:
+        return False
+
+def sendP2PMessage(client, message):
+    try:
+        client.send(message.encode())
+    except ConnectionResetError or ConnectionError or ConnectionAbortedError:
+        return 'CLOSE_CONNECTION'
+    except:
+        return False

@@ -29,7 +29,7 @@ def checkClientMessage(clientThread, client_socket, message, addr):
     if (msg[0] == 'AVAILABLE' and clientThread == None):
         client = Client(addr, client_socket)
         clientQueue.enqueue(client)
-        print('[*] Cliente %s:%d disponível\n' %(addr[0], addr[1]))
+        print('[*] Cliente %s:%d disponível' %(addr[0], addr[1]))
         checkQueue()
         return client, False
 
@@ -45,7 +45,7 @@ def checkClientMessage(clientThread, client_socket, message, addr):
             clientThread.setTryClient(None)
             clientThread.getTryClient().setTryClient(None)
 
-            print('[*] Cliente %s:%d não conseguiu se conectar com jogador\n' %(addr[0], addr[1]))
+            print('[*] Cliente %s:%d não conseguiu se conectar com jogador' %(addr[0], addr[1]))
 
             checkQueue()
 
@@ -94,13 +94,12 @@ def checkQueue():
     global clientQueue
     threadLock.acquire()
     
-    print("Len: %d" %len(clientQueue.queue))
+    print("[*] Checando fila. Tam.: %d" %len(clientQueue.queue))
     
     if (clientQueue.size() > 1):
         success = False
         while success == False:
-            print("[*] Check Queue")
-    
+            
             client1 = clientQueue.dequeue()
             client2 = clientQueue.dequeue()
 
@@ -112,7 +111,7 @@ def checkQueue():
 
             success = makeAvailability(client1, client2)
     
-    print("Len: %d" %len(clientQueue.queue))
+    print("[*] Checagem terminada. Tam.: %d" %len(clientQueue.queue))
     threadLock.release()
 
 while True:
