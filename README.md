@@ -6,7 +6,7 @@ O projeto roda uma simples aplicação gráfica em **Python 3** de um jogo da ve
 - Requerimentos
 	O programa utiliza a biblioteca graphics.py  por isso precisa que o sistema possua o Tkinter funcionando. Podendo ser instalado com o comando:
 	```bash
-	apt-get install python3-tk
+	sudo apt-get install python3-tk
 	``` 
 # Uso
 Para usar a aplicação basta rodar o comando:
