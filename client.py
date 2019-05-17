@@ -317,13 +317,13 @@ def Game():
         global estadoNet
         text.draw(canvas)
         count = 0
-        while(count < 0):
+        while(count < 10):
             count += 1
             
             if (oppConnMode == 'TRY_CONNECTION'):
                 client, success = connectAsClientP2P(opponentAddr[0], opponentAddr[1])
             elif (oppConnMode == 'WAIT_CONNECTION'):
-                client, success = createServerP2P('localhost', PORT)
+                client, success = createServerP2P(opponentAddr[0], opponentAddr[1])
 
             if(success == True):
                 oppConn = client
