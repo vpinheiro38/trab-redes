@@ -8,7 +8,7 @@ from api import *
 
 sizeofmessage = 1024
 deftimeout = 20
-HOST = '177.30.58.124'     # Endereco IP do Servidor
+HOST = '192.168.1.4'     # Endereco IP do Servidor
 PORT = 5100            # Porta que o Servidor esta
 tcp = None
 clientTcp = None
@@ -91,7 +91,7 @@ def connectAsClientP2P(ip, port):
 
         client.connect((ip, port))
         # client.setblocking(False)
-        print("connect %d : %d" % (ip, port))
+        print("connect %s : %d" % (ip, port))
         # sendP2PMessage(client, 'CONNECTED')
         # response = getP2PMessage(client)
 
@@ -106,7 +106,7 @@ def connectAsClientP2P(ip, port):
 def createServerP2P(ip, port):
     global clientTcp, deftimeout
     clientTcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    print("wait %d : %d" % (ip, port))
+    print("wait %s : %d" % (ip, port))
     clientTcp.bind((ip, port))
     clientTcp.listen(5)
     # clientTcp.settimeout(deftimeout)
@@ -420,7 +420,7 @@ def Game():
                 opponentAddr[0], int(opponentAddr[1]))
         elif (oppConnMode == 'WAIT_CONNECTION'):
             client, success = createServerP2P(
-                opponentAddr[0], int(opponentAddr[1]))
+                '', int(opponentAddr[1]))
 
         if(success == True):
             oppConn = client

@@ -78,12 +78,12 @@ def makeAvailability(client1, client2):
     conn2 = client2.getServerConnection()
 
     try:
-        sendClientP2PMessage(conn1, 'WAIT_CONNECTION %s %s' %(ip1, port1))
+        sendClientP2PMessage(conn1, 'WAIT_CONNECTION %s %s' %("177.30.58.124", port1))
     except:
         clientQueue.delete(client1)
         return False
     try:
-        sendClientP2PMessage(conn2, 'TRY_CONNECTION %s %s' %(ip1, port1))
+        sendClientP2PMessage(conn2, 'TRY_CONNECTION %s %s' %("177.30.58.124", port1))
     except:
         clientQueue.delete(client2)
         return False
