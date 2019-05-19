@@ -313,7 +313,8 @@ class GraphWin(tk.Canvas):
         self.mouseY = None
         while self.mouseX == None or self.mouseY == None:
             self.update()
-            if self.isClosed(): raise GraphicsError("getMouse in closed window")
+            if self.isClosed(): sys.exit()
+                # raise GraphicsError("getMouse in closed window")
             time.sleep(.1) # give up thread
         x,y = self.toWorld(self.mouseX, self.mouseY)
         self.mouseX = None
@@ -324,7 +325,8 @@ class GraphWin(tk.Canvas):
         """Return last mouse click or None if mouse has
         not been clicked since last call"""
         if self.isClosed():
-            raise GraphicsError("checkMouse in closed window")
+            sys.exit()
+            # raise GraphicsError("checkMouse in closed window")
         self.update()
         if self.mouseX != None and self.mouseY != None:
             x,y = self.toWorld(self.mouseX, self.mouseY)
