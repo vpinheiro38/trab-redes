@@ -412,6 +412,7 @@ def Game():
         global estadoNet
         global tcp, oppConnMode, opponentAddr, oppConn
         text.draw(canvas)
+
         print(opponentAddr[0])
         if (oppConnMode == 'TRY_CONNECTION'):
             client, success = connectAsClientP2P(
