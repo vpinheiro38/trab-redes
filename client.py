@@ -8,7 +8,7 @@ from api import *
 
 sizeofmessage = 1024
 deftimeout = 20
-HOST = '192.168.1.4'     # Endereco IP do Servidor
+HOST = 'localhost'     # Endereco IP do Servidor
 PORT = 5100            # Porta que o Servidor esta
 tcp = None
 clientTcp = None
@@ -19,7 +19,6 @@ opponentAddr = [None, None]
 oppConnMode = 'TRY_CONNECTION'
 oppConn = None
 
-closeWindow = False
 actualCmd = ''
 
 estadoNet = None
@@ -40,7 +39,6 @@ GROSSURA_SIMBOLO = 8
 TEXT_SIZE = 36
 
 canvas = GraphWin("Jogo da Velha", WIDTH, HEIGHT+TEXT_SIZE)
-
 
 class NET(Enum):
     INICIO = 1
@@ -76,22 +74,23 @@ class Cell(Enum):
 
 # MENSAGENS SOBRE JOGADAS
 
-
 def wait(sec):
     timeNow = time.time()
     while time.time() - timeNow < sec:
         canvas.checkMouse()
 
+def closeWindow(conn):
+    sendP2PMessage(conn, 'CLOSE_CONNECTION')
+    sys.exit()
 
 def connectAsClientP2P(ip, port):
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     wait(2)
 
     try:
-
         client.connect((ip, port))
-        # client.setblocking(False)
         print("connect %s : %d" % (ip, port))
+        client.settimeout(60)
         # sendP2PMessage(client, 'CONNECTED')
         # response = getP2PMessage(client)
 
@@ -114,7 +113,7 @@ def createServerP2P(ip, port):
     try:
         connection, addr = clientTcp.accept()
         print('accept')
-        # connection.setblocking(False)
+        connection.settimeout(60)
 
         conn_handler = threading.Thread(target=handle_conn, args=(connection,))
         conn_handler.start()
@@ -126,12 +125,11 @@ def createServerP2P(ip, port):
 
 
 def handle_conn(socket):
-    global actualCmd, closeWindow, canvas, estadoNet, oppConn
+    global actualCmd, canvas, estadoNet, oppConn
 
     while True:
         response = getP2PMessage(socket)
-
-        if response == 'CLOSE_CONNECTION' or canvas.isClosed():
+        if response == False or response == 'TIMEOUT' or response == 'CLOSE_CONNECTION':
             estadoNet = NET.FALHA_NA_CONEXÃO
             break
 
@@ -146,8 +144,8 @@ def handle_conn(socket):
 
 
 def Game():
-    global estadoNet, closeWindow
-    global message, oppConn, oppConnMode, actualCmd, canvas, tcp
+    global estadoNet
+    global message, oppConn, oppConnMode, actualCmd, canvas, tcp, clientTcp
     canvas.setBackground("white")
     message = Text(Point(WIDTH/2, HEIGHT+TEXT_SIZE/2), " ")
     message.setStyle("bold")
@@ -432,8 +430,8 @@ def Game():
         return False
 
     while(True):
-        if (closeWindow or canvas.isClosed()):
-            canvas.close()
+        if canvas.isClosed():
+            closeWindow(oppConn)
 
         limpaTela()
 
@@ -489,8 +487,11 @@ def Game():
 
         elif (estadoNet == NET.FALHA_NA_CONEXÃO):
             text = Text(Point(WIDTH/2, 2*HEIGHT/3),
-                        "A conexão com o adversário caiu.")
+                        "A conexão com o adversário caiu ou ele está ausente.")
             oppConn = None
+            if clientTcp != None:
+                clientTcp.close()
+            clientTcp = None
             text.draw(canvas)
             wait(2)
             estadoNet = NET.INICIO
@@ -498,6 +499,9 @@ def Game():
         else:
             initGame()
             while(True):
+                if canvas.isClosed():
+                    closeWindow(oppConn)
+                    break
                 if (estadoNet == NET.FALHA_NA_CONEXÃO):
                     break
                 if (estadoAtual == gameState.PLAYING):
@@ -507,8 +511,8 @@ def Game():
                                 onClick(canvas.getMouse())
                             except:
                                 oppConn = None
-                                closeWindow = True
                                 estadoNet = NET.INICIO
+                                break
                         else:
                             canvas.checkMouse()
                             response = actualCmd
@@ -517,6 +521,7 @@ def Game():
                             elif response == 'CLOSE_CONNECTION':
                                 estadoNet = NET.INICIO
                                 oppConn = None
+                                break
                             else:
                                 updateWaitGame(response)
                     elif (oppConnMode == 'WAIT_CONNECTION'):
@@ -526,6 +531,7 @@ def Game():
                             except:
                                 oppConn = None
                                 estadoNet = NET.INICIO
+                                break
                         else:
                             canvas.checkMouse()
                             response = actualCmd
@@ -534,6 +540,7 @@ def Game():
                             elif response == 'CLOSE_CONNECTION':
                                 oppConn = None
                                 estadoNet = NET.INICIO
+                                break
                             else:
                                 updateWaitGame(response)
                 else:
