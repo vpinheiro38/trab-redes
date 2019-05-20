@@ -54,7 +54,7 @@ class NET(Enum):
 
 class gameState(Enum):
     PLAYING = 1
-    EMPATE = 2
+    DRAW = 2
     X_GANHOU = 3
     O_GANHOU = 4
 
@@ -153,10 +153,6 @@ def Game():
     message.setStyle("bold")
     estadoNet = NET.INICIO
 
-    def animacaoEspera():
-        a = 1
-        # TODO: FAZER ANIMAÇAO
-
     def limpaTela():
         for item in canvas.items[:]:
             item.undraw()
@@ -194,15 +190,7 @@ def Game():
         bola.setWidth(3)
         bola.draw(canvas)
 
-    def inside(point, rectangle):
-        ll = rectangle.getP1()
-        ur = rectangle.getP2()
-
-        return ll.getX() < point.getX() < ur.getX() and ll.getY() < point.getY() < ur.getY()
-
-    def drawCanvas():
-        global tabuleiro
-        global message
+    def drawBoardLines():
         for linha in range(1, LINHAS):
             vertical = Line(Point(0, CELL_SIZE * linha),
                             Point(WIDTH, CELL_SIZE * linha))
@@ -215,6 +203,8 @@ def Game():
             horizontal.setWidth(3)
             horizontal.draw(canvas)
 
+    def drawUserInputs():
+        global tabuleiro
         for linha in range(LINHAS):
             for coluna in range(COLUNAS):
                 x1 = coluna * CELL_SIZE + CELL_PADDING
@@ -228,6 +218,8 @@ def Game():
                     y = linha * CELL_SIZE + CELL_SIZE/2
                     drawO(x, y, TAM_SIMBOLO/2)
 
+    def drawGameText():
+        global message
         message.setSize(TEXT_SIZE-20)
         if (estadoAtual == gameState.PLAYING):
             message.setSize(TEXT_SIZE)
@@ -241,17 +233,25 @@ def Game():
                     message.setText("Sua vez - O")
                 else:
                     message.setText("Vez do oponente - X")
-
-        elif (estadoAtual == gameState.EMPATE):
+        elif (estadoAtual == gameState.DRAW):
             message.setText("É um empate! Clique para jogar novamente.")
         elif (estadoAtual == gameState.X_GANHOU):
             message.setText("'O' Ganhou! Clique para jogar novamente.")
         elif (estadoAtual == gameState.O_GANHOU):
             message.setText("'X' Ganhou! Clique para jogar novamente.")
-
         message.setFace("arial")
         message.undraw()
         message.draw(canvas)
+
+    def inside(point, rectangle):
+        ll = rectangle.getP1()
+        ur = rectangle.getP2()
+        return ll.getX() < point.getX() < ur.getX() and ll.getY() < point.getY() < ur.getY()
+
+    def updateCanvas():
+        drawBoardLines()
+        drawUserInputs()
+        drawGameText()
 
     def onClick(pos):
         global tabuleiro
@@ -263,7 +263,7 @@ def Game():
         if estadoAtual == gameState.PLAYING:
             if (linhaSelecionada >= 0 and linhaSelecionada < LINHAS and colunaSelecionada >= 0 and colunaSelecionada < COLUNAS
                     and tabuleiro[linhaSelecionada][colunaSelecionada] == Cell.EMPTY):
-                updateGame(jogadorAtual, linhaSelecionada, colunaSelecionada)
+                makeMove(jogadorAtual, linhaSelecionada, colunaSelecionada)
 
         else:
             sendP2PMessage(oppConn, 'PLAY_AGAIN')
@@ -280,9 +280,9 @@ def Game():
         jogadorAtual = Cell.X
         row = [Cell.EMPTY]*LINHAS
         tabuleiro = [list(row) for i in range(COLUNAS)]
-        drawCanvas()
+        updateCanvas()
 
-    def updateGame(player, linha, coluna):
+    def makeMove(player, linha, coluna):
         global estadoAtual, jogadorAtual, tabuleiro
         global message, oppConn
 
@@ -293,10 +293,10 @@ def Game():
             estadoAtual = (gameState.X_GANHOU, gameState.O_GANHOU)[
                 player == Cell.X]
         elif (empatou()):
-            estadoAtual = gameState.EMPATE
+            estadoAtual = gameState.DRAW
         else:
             jogadorAtual = (Cell.X, Cell.O)[player == Cell.X]
-        drawCanvas()
+        updateCanvas()
 
     def updateWaitGame(response):
         global estadoAtual, jogadorAtual, tabuleiro
@@ -321,10 +321,10 @@ def Game():
             estadoAtual = (gameState.X_GANHOU, gameState.O_GANHOU)[
                 player == Cell.X]
         elif (empatou()):
-            estadoAtual = gameState.EMPATE
+            estadoAtual = gameState.DRAW
         else:
             jogadorAtual = (Cell.X, Cell.O)[player == Cell.X]
-        drawCanvas()
+        updateCanvas()
 
     def ganhou(player, linha, coluna):
         global tabuleiro
