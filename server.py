@@ -12,9 +12,9 @@ sizeofmessage = 1024
 threadLock = threading.Lock()
 
 tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-tcp.bind((socket.gethostname(),bind_port))
+tcp.bind((bind_ip,bind_port))
 tcp.listen(5)
-print ('[*] Escutando %s:%d' %(socket.gethostname(),bind_port))
+print ('[*] Escutando %s:%d' %(bind_ip,bind_port))
 
 def getClientP2PMessage(conn):
     try: return conn.recv(sizeofmessage).decode()
