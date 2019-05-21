@@ -6,41 +6,6 @@ from enum import Enum
 import socket
 from api import *
 
-sizeofmessage = 1024
-deftimeout = 20
-HOST = '192.168.1.4'     # Endereco IP do Servidor
-PORT = 5100            # Porta que o Servidor esta
-tcp = None
-clientTcp = None
-server = (HOST, PORT)
-
-opponentAddr = [None, None]
-# Como o cliente irá se conectar com o oponente (enviar ou receber conexão)
-oppConnMode = 'TRY_CONNECTION'
-oppConn = None
-
-closeWindow = False
-actualCmd = ''
-
-estadoNet = None
-jogadorAtual = None
-estadoAtual = None
-tabuleiro = None
-message = None
-LINHAS = 3
-COLUNAS = 3
-CELL_SIZE = 200
-WIDTH = CELL_SIZE * COLUNAS
-HEIGHT = CELL_SIZE * LINHAS
-GRID_WIDTH = 8
-GRID_WIDHT_HALF = GRID_WIDTH / 2
-CELL_PADDING = CELL_SIZE / 6
-TAM_SIMBOLO = CELL_SIZE - CELL_PADDING * 2
-GROSSURA_SIMBOLO = 8
-TEXT_SIZE = 36
-
-canvas = GraphWin("Jogo da Velha", WIDTH, HEIGHT+TEXT_SIZE)
-
 
 class NET(Enum):
     INICIO = 1
@@ -64,17 +29,38 @@ class Cell(Enum):
     X = 2
     O = 3
 
-# TELAS
-# INICIO - BOTAO PARA PROCURAR ADVERSÁRIO
-# TENTANDO SE CONECTAR COM SERVIDOR
-# CONEXÃO FALHOU
-# BUSCANDO ADVERSARIO
-# TIMEOUT
-# ADVERSARIO ENCONTRADO TENTANDO SE CONECTAR
-# TIMEOUT
-# INICIO DO GAME
 
-# MENSAGENS SOBRE JOGADAS
+sizeofmessage = 1024
+deftimeout = 20
+HOST = 'localhost'     # Endereco IP do Servidor
+PORT = 5100            # Porta que o Servidor esta
+tcp = None
+client = None
+server = (HOST, PORT)
+opponentAddr = [None, None]
+oppConnMode = 'TRY_CONNECTION'
+oppConn = None
+closeWindow = False
+actualCmd = ''
+connectionState = None
+jogadorAtual = None
+estadoAtual = None
+tabuleiro = None
+message = None
+
+LINHAS = 3
+COLUNAS = 3
+CELL_SIZE = 200
+WIDTH = CELL_SIZE * COLUNAS
+HEIGHT = CELL_SIZE * LINHAS
+GRID_WIDTH = 8
+GRID_WIDHT_HALF = GRID_WIDTH / 2
+CELL_PADDING = CELL_SIZE / 6
+TAM_SIMBOLO = CELL_SIZE - CELL_PADDING * 2
+GROSSURA_SIMBOLO = 8
+TEXT_SIZE = 12
+
+canvas = GraphWin("Jogo da Velha", WIDTH, HEIGHT+50)
 
 
 def wait(sec):
@@ -84,17 +70,14 @@ def wait(sec):
 
 
 def connectAsClientP2P(ip, port):
+    global client
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     wait(2)
 
     try:
 
         client.connect((ip, port))
-        # client.setblocking(False)
         print("connect %s : %d" % (ip, port))
-        # sendP2PMessage(client, 'CONNECTED')
-        # response = getP2PMessage(client)
-
         conn_handler = threading.Thread(target=handle_conn, args=(client,))
         conn_handler.start()
     except:
@@ -104,17 +87,15 @@ def connectAsClientP2P(ip, port):
 
 
 def createServerP2P(ip, port):
-    global clientTcp, deftimeout
-    clientTcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    global client, deftimeout
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     print("wait %s : %d" % (ip, port))
-    clientTcp.bind((ip, port))
-    clientTcp.listen(5)
-    # clientTcp.settimeout(deftimeout)
+    client.bind((ip, port))
+    client.listen(5)
 
     try:
-        connection, addr = clientTcp.accept()
+        connection, addr = client.accept()
         print('accept')
-        # connection.setblocking(False)
 
         conn_handler = threading.Thread(target=handle_conn, args=(connection,))
         conn_handler.start()
@@ -126,13 +107,13 @@ def createServerP2P(ip, port):
 
 
 def handle_conn(socket):
-    global actualCmd, closeWindow, canvas, estadoNet, oppConn
+    global actualCmd, closeWindow, canvas, connectionState, oppConn
 
     while True:
         response = getP2PMessage(socket)
 
         if response == 'CLOSE_CONNECTION' or canvas.isClosed():
-            estadoNet = NET.FALHA_NA_CONEXÃO
+            connectionState = NET.FALHA_NA_CONEXÃO
             break
 
         if (response != False):
@@ -146,14 +127,14 @@ def handle_conn(socket):
 
 
 def Game():
-    global estadoNet, closeWindow
+    global connectionState, closeWindow
     global message, oppConn, oppConnMode, actualCmd, canvas, tcp
     canvas.setBackground("white")
     message = Text(Point(WIDTH/2, HEIGHT+TEXT_SIZE/2), " ")
     message.setStyle("bold")
-    estadoNet = NET.INICIO
+    connectionState = NET.INICIO
 
-    def limpaTela():
+    def clearScreen():
         for item in canvas.items[:]:
             item.undraw()
         canvas.update()
@@ -180,28 +161,28 @@ def Game():
         diagonal22.draw(canvas)
 
     def drawO(x, y, r):
-        bolaOutline = Circle(Point(x, y), r)
-        bolaOutline.setOutline("black")
-        bolaOutline.setWidth(5)
-        bolaOutline.draw(canvas)
+        circleOutline = Circle(Point(x, y), r)
+        circleOutline.setOutline("black")
+        circleOutline.setWidth(5)
+        circleOutline.draw(canvas)
 
-        bola = Circle(Point(x, y), r)
-        bola.setOutline("blue")
-        bola.setWidth(3)
-        bola.draw(canvas)
+        circle = Circle(Point(x, y), r)
+        circle.setOutline("blue")
+        circle.setWidth(3)
+        circle.draw(canvas)
 
     def drawBoardLines():
         for linha in range(1, LINHAS):
-            vertical = Line(Point(0, CELL_SIZE * linha),
-                            Point(WIDTH, CELL_SIZE * linha))
-            vertical.setWidth(3)
-            vertical.draw(canvas)
-
-        for coluna in range(1, COLUNAS):
-            horizontal = Line(Point(CELL_SIZE * coluna, 0),
-                              Point(CELL_SIZE * coluna, HEIGHT))
+            horizontal = Line(Point(0, CELL_SIZE * linha),
+                              Point(WIDTH, CELL_SIZE * linha))
             horizontal.setWidth(3)
             horizontal.draw(canvas)
+
+        for coluna in range(1, COLUNAS):
+            vertical = Line(Point(CELL_SIZE * coluna, 0),
+                            Point(CELL_SIZE * coluna, HEIGHT))
+            vertical.setWidth(3)
+            vertical.draw(canvas)
 
     def drawUserInputs():
         global tabuleiro
@@ -220,7 +201,7 @@ def Game():
 
     def drawGameText():
         global message
-        message.setSize(TEXT_SIZE-20)
+        message.setSize(TEXT_SIZE)
         if (estadoAtual == gameState.PLAYING):
             message.setSize(TEXT_SIZE)
             if (oppConnMode == 'TRY_CONNECTION'):
@@ -243,44 +224,37 @@ def Game():
         message.undraw()
         message.draw(canvas)
 
-    def inside(point, rectangle):
-        ll = rectangle.getP1()
-        ur = rectangle.getP2()
-        return ll.getX() < point.getX() < ur.getX() and ll.getY() < point.getY() < ur.getY()
+    def drawExitButton():
+        sair = Rectangle(
+            Point(WIDTH/2-30, HEIGHT+TEXT_SIZE+10), Point(WIDTH/2+30, HEIGHT+TEXT_SIZE+30))
+        sair.setWidth(3)
+        text = Text(Point(WIDTH/2,  HEIGHT+TEXT_SIZE+20), "Sair")
+        text.setTextColor("red")
+        sair.draw(canvas)
+        text.draw(canvas)
+
+    def inside(clickedPoint, rectangle):
+        lowerLeft = rectangle.getP1()
+        upperRight = rectangle.getP2()
+        return lowerLeft.getX() < clickedPoint.getX() < upperRight.getX() and lowerLeft.getY() < clickedPoint.getY() < upperRight.getY()
 
     def updateCanvas():
         drawBoardLines()
         drawUserInputs()
         drawGameText()
+        drawExitButton()
 
-    def onClick(pos):
-        global tabuleiro
-        global estadoAtual, oppConn
-        print(estadoAtual)
-        colunaSelecionada = int(pos.getX() / CELL_SIZE)
-        linhaSelecionada = int(pos.getY() / CELL_SIZE)
+    def closeConection():
+        global connectionState, oppConn, client
+        connectionState = NET.INICIO
+        sendP2PMessage(oppConn, 'CLOSE_CONNECTION')
+        oppConn = None
+        client.close()
+        print(client)
 
-        if estadoAtual == gameState.PLAYING:
-            if (linhaSelecionada >= 0 and linhaSelecionada < LINHAS and colunaSelecionada >= 0 and colunaSelecionada < COLUNAS
-                    and tabuleiro[linhaSelecionada][colunaSelecionada] == Cell.EMPTY):
-                makeMove(jogadorAtual, linhaSelecionada, colunaSelecionada)
-
-        else:
-            sendP2PMessage(oppConn, 'PLAY_AGAIN')
-            initGame()
-
-    def initGame():
-        global estadoAtual
-        global jogadorAtual
-        global tabuleiro
-
-        limpaTela()
-
-        estadoAtual = gameState.PLAYING
-        jogadorAtual = Cell.X
-        row = [Cell.EMPTY]*LINHAS
-        tabuleiro = [list(row) for i in range(COLUNAS)]
-        updateCanvas()
+    def isValidCell(line, column):
+        return (line >= 0 and line < LINHAS and column >= 0 and column < COLUNAS
+                and tabuleiro[line][column] == Cell.EMPTY)
 
     def makeMove(player, linha, coluna):
         global estadoAtual, jogadorAtual, tabuleiro
@@ -298,7 +272,38 @@ def Game():
             jogadorAtual = (Cell.X, Cell.O)[player == Cell.X]
         updateCanvas()
 
-    def updateWaitGame(response):
+    def onClick(pos):
+        global tabuleiro
+        global estadoAtual, oppConn
+
+        sair = Rectangle(Point(WIDTH/2-30, HEIGHT+TEXT_SIZE+10),
+                         Point(WIDTH/2+30, HEIGHT+TEXT_SIZE+30))
+        selectedColumn = int(pos.getX() / CELL_SIZE)
+        selectedLine = int(pos.getY() / CELL_SIZE)
+
+        if estadoAtual == gameState.PLAYING:
+            if (isValidCell(selectedLine, selectedColumn)):
+                makeMove(jogadorAtual, selectedLine, selectedColumn)
+            elif(inside(pos, sair)):
+                closeConection()
+
+        else:
+            sendP2PMessage(oppConn, 'PLAY_AGAIN')
+            initGame()
+
+    def initGame():
+        global estadoAtual
+        global jogadorAtual
+        global tabuleiro
+
+        clearScreen()
+        estadoAtual = gameState.PLAYING
+        jogadorAtual = Cell.X
+        row = [Cell.EMPTY]*LINHAS
+        tabuleiro = [list(row) for i in range(COLUNAS)]
+        updateCanvas()
+
+    def updateWaitingGame(response):
         global estadoAtual, jogadorAtual, tabuleiro
         global message, oppConn, oppConnMode, actualCmd
 
@@ -356,7 +361,7 @@ def Game():
         return True
 
     def esperaServidor(text):
-        global estadoNet
+        global connectionState
         global tcp, deftimeout
         text.draw(canvas)
 
@@ -365,19 +370,17 @@ def Game():
         try:
             tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             tcp.connect(server)
-            # tcp.settimeout(deftimeout)
             tcp.setblocking(False)
-            estadoNet = NET.BUSCANDO_ADVERSARIO
+            connectionState = NET.BUSCANDO_ADVERSARIO
             return True
         except:
-            estadoNet = NET.FALHA_NA_CONEXÃO
+            connectionState = NET.FALHA_NA_CONEXÃO
             return False
 
-    def buscaAdversario(text):
-        global estadoNet
+    def searchOpponent(text):
+        global connectionState
         global tcp, oppConnMode, opponentAddr, actualCmd
         text.draw(canvas)
-        count = 0
 
         sendP2PMessage(tcp, 'AVAILABLE')
 
@@ -398,20 +401,20 @@ def Game():
             sendP2PMessage(tcp, 'TRYING_TO_PLAY')
             opponentAddr[0] = response[1]
             opponentAddr[1] = response[2]
-            estadoNet = NET.ADVERSARIO_ENCONTRADO
+            connectionState = NET.ADVERSARIO_ENCONTRADO
             return True
         elif len(response) == 3 and response[0] == 'WAIT_CONNECTION':
             oppConnMode = response[0]
             sendP2PMessage(tcp, 'TRYING_TO_PLAY')
             opponentAddr[0] = response[1]
             opponentAddr[1] = response[2]
-            estadoNet = NET.ADVERSARIO_ENCONTRADO
+            connectionState = NET.ADVERSARIO_ENCONTRADO
             return True
 
         return False
 
     def conectaAdversario(text):
-        global estadoNet
+        global connectionState
         global tcp, oppConnMode, opponentAddr, oppConn
         text.draw(canvas)
         print(opponentAddr[0])
@@ -426,7 +429,7 @@ def Game():
             oppConn = client
             sendP2PMessage(tcp, 'PLAYING')
             tcp.close()
-            estadoNet = NET.PRONTO_PARA_JOGAR
+            connectionState = NET.PRONTO_PARA_JOGAR
             return True
 
         return False
@@ -435,23 +438,23 @@ def Game():
         if (closeWindow or canvas.isClosed()):
             canvas.close()
 
-        limpaTela()
+        clearScreen()
 
-        if(estadoNet == NET.INICIO):
+        if(connectionState == NET.INICIO):
             iniciarJogo = Rectangle(
                 Point(WIDTH/2-100, 2*HEIGHT/3-50), Point(WIDTH/2+100, 2*HEIGHT/3+50))
             iniciarJogo.setWidth(3)
             text = Text(Point(WIDTH/2, 2*HEIGHT/3), "Iniciar o jogo!")
+            iniciarJogo.draw(canvas)
             text.draw(canvas)
             drawX(WIDTH/2-100, HEIGHT/3-50, WIDTH/2, HEIGHT/3+50)
             drawO(WIDTH/2+50, HEIGHT/3, 50)
-            iniciarJogo.draw(canvas)
             click = canvas.getMouse()
 
             if(inside(click, iniciarJogo)):
-                estadoNet = NET.CONECTANDO_SERVIDOR
+                connectionState = NET.CONECTANDO_SERVIDOR
 
-        elif(estadoNet == NET.CONECTANDO_SERVIDOR):
+        elif(connectionState == NET.CONECTANDO_SERVIDOR):
             print(server)
             text = Text(Point(WIDTH/2, 2*HEIGHT/3), "Conectando ao servidor.")
 
@@ -461,21 +464,21 @@ def Game():
                 text.setText(
                     "Não foi possível se conectar ao servidor, tente novamente mais tarde.")
                 wait(2)
-                estadoNet = NET.INICIO
+                connectionState = NET.INICIO
 
-        elif(estadoNet == NET.BUSCANDO_ADVERSARIO):
+        elif(connectionState == NET.BUSCANDO_ADVERSARIO):
             text = Text(Point(WIDTH/2, 2*HEIGHT/3), "Buscando adversário.")
             wait(2)
-            ok = buscaAdversario(text)
+            ok = searchOpponent(text)
             if(not ok):
                 text.setText(
                     "Nenhum adversário encontrado, tente novamente mais tarde.")
                 tcp.close()
                 tcp = None
                 wait(2)
-                estadoNet = NET.INICIO
+                connectionState = NET.INICIO
 
-        elif(estadoNet == NET.ADVERSARIO_ENCONTRADO):
+        elif(connectionState == NET.ADVERSARIO_ENCONTRADO):
             text = Text(Point(WIDTH/2, 2*HEIGHT/3),
                         "Adversário encontrado! Tentando se conectar.")
             wait(2)
@@ -485,20 +488,23 @@ def Game():
                 text.setText("Não foi possível se conectar ao adversário.")
                 canvas.update()
                 wait(2)
-                estadoNet = NET.BUSCANDO_ADVERSARIO
+                connectionState = NET.BUSCANDO_ADVERSARIO
 
-        elif (estadoNet == NET.FALHA_NA_CONEXÃO):
+        elif (connectionState == NET.FALHA_NA_CONEXÃO):
+            global client
             text = Text(Point(WIDTH/2, 2*HEIGHT/3),
                         "A conexão com o adversário caiu.")
+            client.close()
+            print(client)
             oppConn = None
             text.draw(canvas)
             wait(2)
-            estadoNet = NET.INICIO
+            connectionState = NET.INICIO
 
         else:
             initGame()
             while(True):
-                if (estadoNet == NET.FALHA_NA_CONEXÃO):
+                if (connectionState != NET.PRONTO_PARA_JOGAR):
                     break
                 if (estadoAtual == gameState.PLAYING):
                     if (oppConnMode == 'TRY_CONNECTION'):
@@ -508,34 +514,36 @@ def Game():
                             except:
                                 oppConn = None
                                 closeWindow = True
-                                estadoNet = NET.INICIO
+                                connectionState = NET.INICIO
                         else:
                             canvas.checkMouse()
                             response = actualCmd
                             if response == '':
                                 continue
                             elif response == 'CLOSE_CONNECTION':
-                                estadoNet = NET.INICIO
+                                connectionState = NET.INICIO
                                 oppConn = None
                             else:
-                                updateWaitGame(response)
+                                updateWaitingGame(response)
                     elif (oppConnMode == 'WAIT_CONNECTION'):
                         if (jogadorAtual == Cell.O):
                             try:
                                 onClick(canvas.getMouse())
                             except:
                                 oppConn = None
-                                estadoNet = NET.INICIO
+                                connectionState = NET.INICIO
                         else:
                             canvas.checkMouse()
                             response = actualCmd
                             if response == '':
                                 continue
                             elif response == 'CLOSE_CONNECTION':
+                                print(response)
                                 oppConn = None
-                                estadoNet = NET.INICIO
+                                connectionState = NET.INICIO
                             else:
-                                updateWaitGame(response)
+                                print(response)
+                                updateWaitingGame(response)
                 else:
                     mouse = canvas.checkMouse()
                     if mouse == None and actualCmd == '':
@@ -551,7 +559,7 @@ def Game():
                             continue
                         elif len(response) == 1 and response[0] == 'CLOSE_CONNECTION':
                             oppConn = None
-                            estadoNet = NET.INICIO
+                            connectionState = NET.INICIO
                             continue
                     onClick(mouse)
 

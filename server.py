@@ -1,7 +1,8 @@
 
 import socket
 import threading
-from api import *
+from api import Queue
+from api import Client
 
 clientQueue = Queue()
 state = ['']
@@ -10,10 +11,10 @@ bind_port = 5100
 sizeofmessage = 1024
 
 threadLock = threading.Lock()
-
 tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 tcp.bind((bind_ip,bind_port))
 tcp.listen(5)
+
 print ('[*] Escutando %s:%d' %(bind_ip,bind_port))
 
 def getClientP2PMessage(conn):
@@ -78,12 +79,12 @@ def makeAvailability(client1, client2):
     conn2 = client2.getServerConnection()
 
     try:
-        sendClientP2PMessage(conn1, 'WAIT_CONNECTION %s %s' %("177.30.58.124", port1))
+        sendClientP2PMessage(conn1, 'WAIT_CONNECTION %s %s' %(ip1, port1))
     except:
         clientQueue.delete(client1)
         return False
     try:
-        sendClientP2PMessage(conn2, 'TRY_CONNECTION %s %s' %("177.30.58.124", port1))
+        sendClientP2PMessage(conn2, 'TRY_CONNECTION %s %s' %(ip1, port1))
     except:
         clientQueue.delete(client2)
         return False
