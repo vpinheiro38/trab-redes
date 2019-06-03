@@ -46,18 +46,6 @@ def checkClientMessage(clientThread, client_socket, message, addr):
         print('[*] Fechando conexão com %s:%d' % (addr[0], addr[1]))
         return clientThread, True
 
-    elif msg[0] == 'ERROR':
-        if (msg[1] == '0' and clientThread != None):
-            clientQueue.enqueue(clientThread)
-            clientQueue.enqueue(clientThread.getTryClient())
-            clientThread.setTryClient(None)
-            clientThread.getTryClient().setTryClient(None)
-
-            print('[*] Cliente %s:%d não conseguiu se conectar com jogador' %
-                  (addr[0], addr[1]))
-
-            checkQueue()
-
     return clientThread, False
 
 
