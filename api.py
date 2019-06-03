@@ -53,6 +53,8 @@ class Client:
 def getP2PMessage(client):
     try:
         return client.recv(1024).decode()
+    except TimeoutError:
+        return 'TIMEOUT'
     except ConnectionResetError or ConnectionError or ConnectionAbortedError:
         return 'CLOSE_CONNECTION'
     except:

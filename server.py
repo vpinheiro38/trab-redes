@@ -5,7 +5,6 @@ from api import Queue
 from api import Client
 
 clientQueue = Queue()
-state = ['']
 bind_ip = ''
 bind_port = 5100
 sizeofmessage = 1024
@@ -84,6 +83,7 @@ def makeAvailability(client1, client2):
         return False
     try:
         sendClientP2PMessage(conn2, 'TRY_CONNECTION %s %s' % (ip1, port1))
+
     except:
         clientQueue.delete(client2)
         return False

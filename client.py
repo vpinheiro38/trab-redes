@@ -68,6 +68,9 @@ def wait(sec):
     while time.time() - timeNow < sec:
         canvas.checkMouse()
 
+def closeWindow(conn):
+    sendP2PMessage(conn, 'CLOSE_CONNECTION')
+    sys.exit()
 
 def connectAsClientP2P(ip, port):
     global client
@@ -75,7 +78,6 @@ def connectAsClientP2P(ip, port):
     wait(2)
 
     try:
-
         client.connect((ip, port))
         print("connect %s : %d" % (ip, port))
         conn_handler = threading.Thread(target=handle_conn, args=(client,))
@@ -96,7 +98,6 @@ def createServerP2P(ip, port):
     try:
         connection, addr = client.accept()
         print('accept')
-
         conn_handler = threading.Thread(target=handle_conn, args=(connection,))
         conn_handler.start()
 
@@ -114,6 +115,7 @@ def handle_conn(socket):
 
         if response == 'CLOSE_CONNECTION' or canvas.isClosed():
             connectionState = NET.FALHA_NA_CONEXÃO
+
             break
 
         if (response != False):
@@ -129,6 +131,7 @@ def handle_conn(socket):
 def Game():
     global connectionState, closeWindow
     global message, oppConn, oppConnMode, actualCmd, canvas, tcp
+   
     canvas.setBackground("white")
     message = Text(Point(WIDTH/2, HEIGHT+TEXT_SIZE/2), " ")
     message.setStyle("bold")
@@ -418,6 +421,7 @@ def Game():
         global connectionState
         global tcp, oppConnMode, opponentAddr, oppConn
         text.draw(canvas)
+
         if (oppConnMode == 'TRY_CONNECTION'):
             client, success = connectAsClientP2P(
                 opponentAddr[0], int(opponentAddr[1]))
@@ -549,8 +553,8 @@ def Game():
                     updateWaitingGame(response)
 
     while(True):
-        if (closeWindow or canvas.isClosed()):
-            canvas.close()
+        if canvas.isClosed():
+            closeWindow(oppConn)
 
         clearScreen()
 
@@ -576,7 +580,6 @@ def Game():
                     break
                 if (estadoAtual == gameState.PLAYING):
                     dealWithUserInput()
-
                 else:
                     mouse = canvas.checkMouse()
                     if (mouse == None and actualCmd != ''):
