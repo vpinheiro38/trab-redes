@@ -50,14 +50,3 @@ class Client:
 
     def getTryClient(self):
         return self.tryclient
-
-
-def getP2PMessage(client):
-    try:
-        return client.recv(1024).decode()
-    except TimeoutError:
-        return 'TIMEOUT'
-    except ConnectionResetError | ConnectionError | ConnectionAbortedError:
-        return 'CLOSE_CONNECTION'
-    except:
-        return False

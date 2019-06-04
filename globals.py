@@ -1,5 +1,4 @@
 from enum import Enum
-from application import APP
 class NET(Enum):
     INICIO = 1
     CONECTANDO_SERVIDOR = 2
