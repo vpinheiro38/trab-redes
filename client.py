@@ -98,12 +98,12 @@ def Game():
         message.setSize(TEXT_SIZE)
         if (estadoAtual == gameState.PLAYING):
             message.setSize(TEXT_SIZE)
-            if (oppConnMode == 'TRY_CONNECTION'):
+            if (app.oppConnMode == 'TRY_CONNECTION'):
                 if (jogadorAtual == Cell.X):
                     message.setText("Sua vez - X")
                 else:
                     message.setText("Vez do oponente - O")
-            elif (oppConnMode == 'WAIT_CONNECTION'):
+            elif (app.oppConnMode == 'WAIT_CONNECTION'):
                 if (jogadorAtual == Cell.O):
                     message.setText("Sua vez - O")
                 else:
@@ -313,7 +313,6 @@ def Game():
 
     def dealWithUserInput():
         global oppConn, closeWindow
-        print(app.oppConnMode)
         if (app.oppConnMode == 'TRY_CONNECTION'):
             if (jogadorAtual == Cell.X):
                 # Make my move
@@ -327,7 +326,7 @@ def Game():
                 if mouse != None:
                     onClick(mouse, False)
                 response = app.response
-                if response == '':
+                if response == '' or response == None:
                     return
                 elif response == 'CLOSE_CONNECTION':
                     app.connectionState = NET.INICIO
