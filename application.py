@@ -102,7 +102,7 @@ class App:
 
     def getSocketP2P(self):
         connectionSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        connectionSocket.bind(('', 0))
+        connectionSocket.bind(('localhost', 0))
         choosenSocket = connectionSocket.getsockname()
         print("[*] Escutando  %s : %d" % (choosenSocket[0], choosenSocket[1]))
         connectionSocket.listen(5)
