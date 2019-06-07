@@ -45,24 +45,29 @@ class App:
             return False
 
     def searchOpponent(self):
-
         self.sendMessage(self.serverSocket, 'AVAILABLE')
         timeNow = time.time()
         response = ''
+
         while (response == '' or response == False) and time.time() - timeNow < 20:
             response = self.getMessage(self.serverSocket)
             if (response == False):
                 pass
             elif response == 'CLOSE_CONNECTION':
                 return False
-        if(int(response) == 1):
+
+        response = str(response).split()
+        if len(response) == 1 and response[0] == 'WAIT_CONNECTION':
             print("RESPOSTINHA ", response)
             self.choosenSocket = self.getSocketP2P()
             addr = self.choosenSocket.getsockname()
             self.oppConnMode = 'WAIT_CONNECTION'
-            self.sendMessage(self.serverSocket,'%s %s' % (str(addr[0]), str(addr[1])))
-        else:
+            self.sendMessage(self.serverSocket, 'SOCKET %s %s' % (str(addr[0]), str(addr[1])))
+        elif len(response) == 1 and response[0] == 'TRY_CONNECTION':
             self.oppConnMode = 'TRY_CONNECTION'
+        else:
+            return False
+
         response = ''
         timeNow = time.time()
         while (response == '' or response == False) and time.time() - timeNow < 20:
@@ -73,12 +78,11 @@ class App:
                 return False
 
         response = str(response).split()
-
-        if len(response) == 2:
+        if len(response) == 3 and response[0] == 'CONNECT':
             self.sendMessage(self.serverSocket, 'TRYING_TO_PLAY')
-            print("addr ",response[0],response[1])
-            self.opponentAddr[0] = response[0]
-            self.opponentAddr[1] = response[1]
+            print("addr ", response[1], response[2])
+            self.opponentAddr[0] = response[1]
+            self.opponentAddr[1] = response[2]
             self.connectionState = NET.ADVERSARIO_ENCONTRADO
             return True
 

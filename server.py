@@ -35,10 +35,10 @@ def checkClientMessage(clientThread, client_socket, message, addr, id):
     msg = message.split()
     if (msg[0] == 'AVAILABLE' and clientThread == None):
         if(id):
-            addr = askForSocket(client_socket).split()
+            addr = askForSocket(client_socket)
             addr[1] = int(addr[1])
         else:
-            sendClientP2PMessage(client_socket, 0)
+            sendClientP2PMessage(client_socket, "TRY_CONNECTION") # id 0
 
         client = Client(addr, client_socket, id)
         clientQueue.enqueue(client)
@@ -54,16 +54,14 @@ def checkClientMessage(clientThread, client_socket, message, addr, id):
     return clientThread, False
 
 def askForSocket(clientSocket):
-    sendClientP2PMessage(clientSocket, 1)
+    sendClientP2PMessage(clientSocket, "WAIT_CONNECTION") # id 1
     request = getClientP2PMessage(clientSocket)
-    return request
-
+    request = request.split()
+    return request[1:]
 
 def handle_client(client_socket, addr, ID):
     close = False
     clientThread = None
-
-    
 
     while close == False:
         request = getClientP2PMessage(client_socket)
@@ -84,24 +82,28 @@ def handle_client(client_socket, addr, ID):
 
 def makeAvailability(client1, client2):
     global clientQueue
+
     ip = 0
     port = 0
+
     if(client1.id):
         ip = client1.getIP()
         port = client1.getPort()
     else:
         ip = client2.getIP()
         port = client2.getPort()
+
     conn1 = client1.getServerConnection()
     conn2 = client2.getServerConnection()
     
     try:
-        sendClientP2PMessage(conn1, '%s %s' % (ip, port))
+        sendClientP2PMessage(conn1, 'CONNECT %s %s' % (ip, port))
     except:
         clientQueue.delete(client1)
         return False
+
     try:
-        sendClientP2PMessage(conn2, '%s %s' % (ip, port))
+        sendClientP2PMessage(conn2, 'CONNECT %s %s' % (ip, port))
 
     except:
         clientQueue.delete(client2)
