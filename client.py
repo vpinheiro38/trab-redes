@@ -5,6 +5,7 @@ import socket
 from api import *
 from application import App
 from globals import *
+
 app = App()
 canvas = GraphWin("Jogo da Velha", WIDTH, HEIGHT+50)
 
