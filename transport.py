@@ -1,7 +1,11 @@
+from threading import Timer
+import time 
+
 STATE = ['WAIT_CALL', 'WAIT_ACK0', 'WAIT_ACK1']
 buffer = []
 actual_state = STATE[0]
 actual_id = 0
+timerList = []
 
 def rdt_send(data):
     global actual_id, actual_state
@@ -16,7 +20,7 @@ def rdt_send(data):
         checkSum = makeCheckSum(data)
         packet = makePacket(actual_id, data, checkSum)
         udt_send(packet)
-        startTimer()
+        startTimer(60, actual_id)
         actual_state = STATE[actual_id+1]
         waitAck(actual_id, packet)
 
@@ -32,10 +36,30 @@ def waitAck(ackNum, packet):
             increaseID()
             break
 
-        if isTimeOut():
+        if isTimeOut(actual_id):
             udt_send(packet)
-            start_timer()
+            startTimer(60, actual_id)
 
+def isTimeOut(actual_id):
+    for gettPair in timerList:
+        if actual_id in gettPair:
+            return False
+
+    return True
+
+def stopTimer(actual_id):
+    for gettPair in timerList:
+        if actual_id in gettPair:
+            timerList.remove(gettPair)
+
+def startTimer(seconds, actual_id):
+    t = Timer(seconds, stopTimer)
+    t.start()
+    tPair = (actual_id, t)
+
+    timerList.append(tPair)
+    timerList[timerList.index(tPair)][1].sleep(seconds)
+    
 def increaseID():
     global actual_id
 
