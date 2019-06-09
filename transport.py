@@ -42,7 +42,7 @@ def waitAck(ackNum, packet):
 
 def isTimeOut(actual_id):
     for gettPair in timerList:
-        if actual_id in gettPair:
+        if actual_id in gettPair: 
             return False
 
     return True
