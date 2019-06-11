@@ -1,4 +1,4 @@
-from threading import Timer
+import threading
 import time 
 
 STATE = ['WAIT_CALL', 'WAIT_ACK0', 'WAIT_ACK1']
@@ -42,7 +42,7 @@ def waitAck(ackNum, packet):
 
 def isTimeOut(actual_id):
     for gettPair in timerList:
-        if actual_id in gettPair: 
+        if actual_id in gettPair:
             return False
 
     return True
@@ -53,12 +53,11 @@ def stopTimer(actual_id):
             timerList.remove(gettPair)
 
 def startTimer(seconds, actual_id):
-    t = Timer(seconds, stopTimer)
-    t.start()
+    t = threading.Timer(seconds, stopTimer, [actual_id])
     tPair = (actual_id, t)
 
     timerList.append(tPair)
-    timerList[timerList.index(tPair)][1].sleep(seconds)
+    timerList[timerList.index(tPair)][1].start()
     
 def increaseID():
     global actual_id
