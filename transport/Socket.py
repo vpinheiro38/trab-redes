@@ -1,12 +1,14 @@
-from redinha.transport import tcp
-from redinha.transport import Segment
+from ..transport import tcp
+from ..transport import Segment
+from ..transport import Checksum
+from Checksum import makeChecksum, isCorrupt
 from itertools import chain
 import threading
 import socket
 import random
 from enum import Enum
 import time
-from redinha.network.network import *
+from ..network.network import *
 
 class SocketState(Enum):
     CLOSED = 1,
@@ -67,7 +69,7 @@ class Socket:
                     for segment in self.rcvBuffer:
                         if (segment.SYN == True and segment.ackNumber == self.nextAckNumber and isMine(segment)):
                             self.state = SocketState.ESTABLISHED
-                            newSegment = self.makeSegment(self.nextSequenceNumber, segment.sequenceNumber + 1)
+                            newSegment = self.makeSegment(self.nextSequenceNumber, ackNumber=self.increment(segment.sequenceNumber))
                             udt_send(newSegment)
                             break
 
@@ -79,8 +81,7 @@ class Socket:
     # def close(self):
 
     def send(self, data):
-        newSegment = Segment(self, self.destinationSocket, data)
-        self.sendBuffer.insert(0, newSegment)
+        self.sendBuffer.insert(0, data) #Segmento é criado depois
 
     def getInterval(self):
         interval = list(
@@ -95,7 +96,7 @@ class Socket:
             if len(self.sendBuffer) > 0:
                 if self.nextSequenceNumber in self.getInterval():
                     packet = self.makeSegment(
-                        self.nextSequenceNumber, self.sendBuffer[0])
+                        self.nextSequenceNumber, data=self.sendBuffer[0])
                     udt_send(packet)
                     self.startTimer(self.timeoutInterval,
                                     self.nextSequenceNumber)
@@ -105,7 +106,7 @@ class Socket:
 
             # Verifica recebimento de ACK
             packet = udt_rcv()
-            n = isAck(packet)
+            n = Segment.isAck(packet)
             if n > -1:
                 self.transmissions[n][1] = True
                 self.stopTimer(n)
@@ -129,7 +130,7 @@ class Socket:
                 for segment in self.rcvBuffer:
                     if segment.SYN:
                         self.destinationSocket = Socket(segment.sourceIp, segment.sourcePort)
-                        self.destinationSequenceNumber = segment.sequenceNumber + 1
+                        self.destinationSequenceNumber = self.increment(segment.sequenceNumber)
                         self.sendSYNACK()
 
     def sendSYNACK(self):
@@ -168,8 +169,10 @@ class Socket:
         number %= MAX_SEQNUM
         return number
 
-    def makeSegment(self, seqenceNumber, ackNumber, data = None):
-        return Segment(self, destinationSocket, sequenceNumber, ackNumber, data)
+    def makeSegment(self, seqenceNumber, ackNumber=None, data=None):
+        seg = Segment(self, destinationSocket, sequenceNumber, ackNumber, data)        
+        seg.checksum = makeChecksum(data, amountCheckBits, gen)
+        return seg
 
 sla = Socket()
 sla2 = Socket()
