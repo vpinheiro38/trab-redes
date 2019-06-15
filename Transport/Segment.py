@@ -10,7 +10,7 @@ class Segment:
         self.SYN = None
         self.checksum = None
 
-    def isAck(self, segment):
-        if segment.ackNumber != None:
+    def isAck(self):
+        if self.ackNumber != None:
             return True
         return False

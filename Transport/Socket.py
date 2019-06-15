@@ -1,10 +1,9 @@
 from .Checksum import makeChecksum
 from Transport.TCP import tcp
-import Transport.Segment as Segment
+from Transport.Segment import Segment
 import network.network as network
 from itertools import chain
 import threading
-import socket
 import random
 from enum import Enum
 import time
@@ -49,11 +48,11 @@ class Socket:
 
     def connect(self, ip, port):
         self.destinationSocket = Socket(ip,port)
-        synSegment = Segment(self, destinationSocket)
+        synSegment = Segment(self, self.destinationSocket)
         synSegment.SYN = 1
         synSegment.sequenceNumber = self.nextSequenceNumber
         self.sendBase = self.nextSequenceNumber
-        self.nextAckNumber = self.sequenceNumber
+        self.nextAckNumber = self.nextSequenceNumber
         network.udt_send(synSegment)
 
         self.nextSequenceNumber = increment(self.nextSequenceNumber)
