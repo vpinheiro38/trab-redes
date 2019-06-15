@@ -44,8 +44,8 @@ class Socket:
         self.nextAckNumber = 0
         self.rcvBuffer = []
 
-        # self.thread = threading.Thread(target=self.stateMachine)
-        # self.thread.start()
+        self.thread = threading.Thread(target=self.stateMachine)
+        self.thread.start()
 
     def connect(self, ip, port):
         self.destinationSocket = Socket(ip,port)
@@ -62,8 +62,8 @@ class Socket:
         currentTry = 0
         while(currentTry < 3):
             currentTry += 1
-            time = time.time()
-            while (self.timeoutRcv > 0 and time.time() - time < self.timeoutRcv):
+            timeNow = time.time()
+            while (self.timeoutRcv > 0 and time.time() - timeNow < self.timeoutRcv):
                 if len(self.rcvBuffer) > 0:
                     for segment in self.rcvBuffer:
                         if (segment.SYN == True and segment.ackNumber == self.nextAckNumber and isMine(segment)):
