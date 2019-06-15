@@ -35,8 +35,9 @@ class Socket:
 
         self.state = SocketState.CLOSED
         # Buffer de segmentos q precisam ser enviados. Buffer, pois janela pode encher
+        self.timerList = []
         self.sendBuffer = []
-        self.transmission = list([None, False] for i in range(
+        self.transmissions = list([None, False] for i in range(
             Socket.MAX_SEQNUM))  # [ Packet, Enviado ou não ]
         self.sendBase = 0
         self.nextSequenceNumber = random.randint(0, Socket.MAX_SEQNUM)
@@ -55,7 +56,7 @@ class Socket:
         self.nextAckNumber = self.nextSequenceNumber
         network.udt_send(synSegment)
 
-        self.nextSequenceNumber = increment(self.nextSequenceNumber)
+        self.nextSequenceNumber = self.increment(self.nextSequenceNumber)
         self.state = SocketState.SYN_SENT
 
         currentTry = 0
@@ -100,8 +101,8 @@ class Socket:
                     self.startTimer(self.timeoutInterval,
                                     self.nextSequenceNumber)
                     self.transmissions[self.nextSequenceNumber][0] = packet
-                    self.nextSequenceNumber = increment(
-                        self.nextSequenceNumber, Socket.MAX_SEQNUM)
+                    self.nextSequenceNumber = self.increment(
+                        self.nextSequenceNumber)
 
             # Verifica recebimento de ACK
             packet = network.udt_rcv(self)
@@ -110,8 +111,8 @@ class Socket:
                 self.transmissions[n][1] = True
                 self.stopTimer(n)
                 while self.transmissions[self.sendBase][1]:
-                    self.sendBase = increment(
-                        self.sendBase, Socket.MAX_SEQNUM)
+                    self.sendBase = self.increment(
+                        self.sendBase)
 
             # Verifica todos os timers
             for ind in range(Socket.MAX_SEQNUM):
@@ -164,9 +165,9 @@ class Socket:
         self.timerList.append(tPair)
         self.timerList[self.timerList.index(tPair)][1].start()
 
-    def increment(number):
+    def increment(self,number):
         number += 1
-        number %= MAX_SEQNUM
+        number %= self.MAX_SEQNUM
         return number
 
     def makeSegment(self, seqenceNumber, ackNumber=None, data=None):
