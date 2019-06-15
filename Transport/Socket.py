@@ -31,7 +31,7 @@ class Socket:
 
         self.timeoutInterval = 5  # Tempo de espera para um pacote ser enviado e receber um ACK
         # Tempo de espera para alguma mensagem da camada de rede - igual a 0 bloqueia a thread de conexao
-        self.timeoutRcv = 5
+        self.timeoutRcv = 0
 
         self.state = SocketState.CLOSED
         # Buffer de segmentos q precisam ser enviados. Buffer, pois janela pode encher
@@ -44,8 +44,8 @@ class Socket:
         self.nextAckNumber = 0
         self.rcvBuffer = []
 
-        self.thread = threading.Thread(target=self.stateMachine)
-        self.thread.start()
+        # self.thread = threading.Thread(target=self.stateMachine)
+        # self.thread.start()
 
     def connect(self, ip, port):
         self.destinationSocket = Socket(ip,port)
@@ -58,9 +58,9 @@ class Socket:
 
         self.nextSequenceNumber = self.increment(self.nextSequenceNumber)
         self.state = SocketState.SYN_SENT
-
+        self.timeoutRcv = 5
         currentTry = 0
-        while(currentTry > 3):
+        while(currentTry < 3):
             currentTry += 1
             time = time.time()
             while (self.timeoutRcv > 0 and time.time() - time < self.timeoutRcv):
@@ -115,11 +115,11 @@ class Socket:
                         self.sendBase)
 
             # Verifica todos os timers
-            for ind in range(Socket.MAX_SEQNUM):
-                if not self.transmissions[ind][1] and isTimeout(ind):
-                    network.udt_send(self.transmissions[ind][0])
+            for index in range(Socket.MAX_SEQNUM):
+                if not self.transmissions[index][1] and self.isTimeout(index):
+                    network.udt_send(self.transmissions[index][0])
                     self.startTimer(self.timeoutInterval,
-                                    self.transmissions[ind][0].sequencenumber)
+                                    self.transmissions[index][0].sequencenumber)
 
     def listen(self):
         self.state = SocketState.LISTEN
