@@ -116,7 +116,8 @@ class Socket:
 
             # Verifica todos os timers
             for index in range(Socket.MAX_SEQNUM):
-                if not self.transmissions[index][1] and self.isTimeout(index):
+                if self.transmissions[index][0] != None and not self.transmissions[index][1] and self.isTimeout(index):
+                    print(self.transmissions[index])
                     network.udt_send(self.transmissions[index][0])
                     self.startTimer(self.timeoutInterval,
                                     self.transmissions[index][0].sequencenumber)
@@ -144,6 +145,7 @@ class Socket:
         self.sendBuffer.insert(0, newSegment)
 
     def isTimeout(self, seqnum):
+        print(self.timerList)
         for gettPair in self.timerList:
             if seqnum in gettPair:
                 return False
