@@ -1,7 +1,19 @@
-from ..transport import Segment
+import Transport.Segment
+import socket, pickle
 
-def udt_send(synSegment):
-    print(synSegment)
+def udt_send(segment):
+    udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    dest = (segment.destinationIp, segment.destinationPort)
+    data_string = pickle.dumps(segment)
+    print("eita",data_string);
+    udp.sendto (data_string, dest)
+    udp.close()
 
-def udt_rcv():
-    return Segment()
+def udt_rcv(mySocket):
+    udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    orig = (mySocket.sourceIp, mySocket.sourcePort)
+    udp.bind(orig)
+    data = udp.recv(4096)
+    segment = pickle.loads(data)
+    udp.close()
+    return segment
