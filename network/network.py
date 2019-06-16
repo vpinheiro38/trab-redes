@@ -1,5 +1,6 @@
 import Transport.Segment
 import socket, pickle
+import select
 
 def udt_send(segment):
     udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -9,12 +10,20 @@ def udt_send(segment):
     udp.sendto (data_string, dest)
     udp.close()
 
-def udt_rcv(mySocket):
+def udt_rcv(mySocket, time):
     udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     orig = (mySocket.sourceIp, mySocket.sourcePort)
     udp.bind(orig)
-    data = udp.recv(4096)
-    print("rcv", data)
-    segment = pickle.loads(data)
-    udp.close()
-    return segment
+
+    
+
+    udp.setblocking(0)
+
+    ready = select.select([udp], [], [], time)
+    if ready[0]:
+        data = udp.recv(4096)
+        print("rcv ", data)
+        segment = pickle.loads(data)
+        print(segment)
+        udp.close()
+        return segment
