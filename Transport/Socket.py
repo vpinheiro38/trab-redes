@@ -29,7 +29,7 @@ class Socket:
         self.sourcePort = sourcePort
         self.destinationSocket = None
 
-        self.timeoutInterval = 1.5  # Tempo de espera para um pacote ser enviado e receber um ACK
+        self.timeoutInterval = 0.5  # Tempo de espera para um pacote ser enviado e receber um ACK
         # Tempo de espera para alguma mensagem da camada de rede - igual a 0 bloqueia a thread de conexao
         self.timeoutRcv = 0
 
@@ -130,7 +130,7 @@ class Socket:
                         self.nextSequenceNumber)
                     self.sendBuffer.pop(0)
             # Verifica recebimento de ACK
-            segment = network.udt_rcv(self, 0.3)
+            segment = network.udt_rcv(self, 0.05)
             # TODO: verificar checksum
             n = None
             if segment != None:
@@ -141,6 +141,8 @@ class Socket:
                     self.stopTimer(n)
                     while self.transmissions[self.send_base][1]:
                         print("send base ",self.send_base)
+                        self.transmissions[self.send_base][1] = False
+                        self.transmissions[self.send_base][0] = None
                         self.send_base = self.increment(
                             self.send_base)
                 else:
