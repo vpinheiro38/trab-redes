@@ -48,11 +48,11 @@ class Socket:
         self.nextAckNumber = 0
         self.rcvBuffer = []
         self.rcv_base = 0
-        
+
         self.thread = threading.Thread(target=self.stateMachine)
 
     def connect(self, ip, port):
-        self.destinationSocket = Socket(ip,port)
+        self.destinationSocket = Socket(ip, port)
         synSegment = Segment(self, self.destinationSocket)
         synSegment.SYN = True
         synSegment.sequenceNumber = self.nextSequenceNumber
@@ -69,11 +69,11 @@ class Socket:
             currentTry += 1
             timeNow = time.time()
             while ((time.time() - timeNow) < self.timeoutRcv):
-                segment = network.udt_rcv(self,0.3)
+                segment = network.udt_rcv(self, 0.3)
                 if(segment == None):
                     continue
-                print(segment.SYN )
-                print(segment.ackNumber,self.nextAckNumber)
+                print(segment.SYN)
+                print(segment.ackNumber, self.nextAckNumber)
                 print(self.isMine(segment))
                 if (segment.SYN == True and segment.ackNumber == self.nextAckNumber and self.isMine(segment)):
                     self.state = SocketState.ESTABLISHED
@@ -98,13 +98,13 @@ class Socket:
     def recieve(self):
         while True:
             if len(self.rcvBuffer):
-                return self.rcvBuffer[0] # Segmento é criado depois
+                return self.rcvBuffer[0]  # Segmento é criado depois
 
     def isInSendInterval(self, Next):
-        return Next >= self.send_base and Next < (self.send_base + Socket.WINDOW_SIZE)%Socket.MAX_SEQNUM
+        return Next >= self.send_base and Next < (self.send_base + Socket.WINDOW_SIZE) % Socket.MAX_SEQNUM
 
     def isInRecieveInterval(self, Next):
-        return Next >= self.rcv_base and Next < (self.rcv_base + Socket.WINDOW_SIZE)%Socket.MAX_SEQNUM
+        return Next >= self.rcv_base and Next < (self.rcv_base + Socket.WINDOW_SIZE) % Socket.MAX_SEQNUM
 
     def stateMachine(self):
         while True:
@@ -124,10 +124,10 @@ class Socket:
                     self.sendBuffer.pop(0)
 
             # Verifica recebimento de ACK
-            segment = network.udt_rcv(self,0.3)
+            segment = network.udt_rcv(self, 0.3)
             # TODO: verificar checksum
             if segment == None:
-                 continue
+                continue
             n = segment.ackNumber
             if n != None:
                 self.transmissions[n][1] = True
@@ -140,16 +140,17 @@ class Socket:
                 if(self.isInRecieveInterval(n)):
                     print("recebeu", n, self.rcv_base)
                     self.packetRecieveList[n] = segment
-                    self.makeSegment(ackNumber = n)
+                    self.makeSegment(ackNumber=n)
                     self.acknoleged[n] = True
                     i = self.rcv_base
-                    while i != (self.rcv_base+Socket.MAX_SEQNUM%Socket.WINDOW_SIZE):
+                    while i != (self.rcv_base+Socket.MAX_SEQNUM % Socket.WINDOW_SIZE):
                         print(i)
                         if not self.acknoleged[i]:
                             break
                         self.rcvBuffer.append(self.packetRecieveList[i].data)
+                        self.acknoleged[i] = False
                         i = self.increment(i)
-
+                        self.rcv_base = i
 
             # Verifica todos os timers
             for index in range(Socket.MAX_SEQNUM):
@@ -160,18 +161,15 @@ class Socket:
                     self.startTimer(self.timeoutInterval,
                                     self.transmissions[index][0].sequencenumber)
 
-
-
-
     def listen(self):
         self.state = SocketState.LISTEN
 
     def accept(self):
         while True:
-            segment = network.udt_rcv(self,20)
+            segment = network.udt_rcv(self, 20)
             # TODO: checar se n tiver corrupto
             if segment.SYN:
-                print("mds");
+                print("mds")
                 self.destinationSocket = Socket(
                     segment.sourceIp, segment.sourcePort)
                 self.rcv_base = segment.sequenceNumber
@@ -179,8 +177,6 @@ class Socket:
                 break
         self.thread.start()
         print("Conexão estabelecida!")
-                    
-
 
     def sendSYNACK(self):
         newSegment = Segment(self, self.destinationSocket)
@@ -215,7 +211,7 @@ class Socket:
         self.timerList.append(tPair)
         self.timerList[self.timerList.index(tPair)][1].start()
 
-    def increment(self,number):
+    def increment(self, number):
         number += 1
         number %= self.MAX_SEQNUM
         return number
