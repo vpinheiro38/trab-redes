@@ -1,4 +1,4 @@
-import Transport.Segment
+from transport.Segment import *
 import socket, pickle
 import select
 

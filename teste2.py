@@ -1,4 +1,4 @@
-from Transport.Socket import *
+from transport.Socket import *
 sla2 = Socket("localhost", 5001)
 
 print(sla2.sourceIp, sla2.sourcePort)

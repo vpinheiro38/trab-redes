@@ -1,13 +1,12 @@
-from .Checksum import makeChecksum
-from Transport.TCP import tcp
-from Transport.Segment import Segment
-import network.network as network
+from transport.Checksum import makeChecksum
+from transport.TransportLayer import tcp
+from transport.Segment import Segment
+from network.network import *
 from itertools import chain
 import threading
 import random
 from enum import Enum
 import time
-
 
 class SocketState(Enum):
     CLOSED = 1,

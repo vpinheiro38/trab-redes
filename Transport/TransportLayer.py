@@ -1,4 +1,4 @@
-class TCP:
+class TransportLayer:
     def __init__(self):
         self.freePorts = list(range(1024, 65535))
         self.openSockets = []           #Lista de listas.Cada posição da lista será uma lista com as informações
@@ -28,7 +28,7 @@ class TCP:
         return -1	#Se não achou, retorna -1
 
 
-tcp = TCP()
+tcp = TransportLayer()
 tcp.getFreePort(1,2,3,4)
 tcp.getFreePort(1,2,4,3)
 tcp.getFreePort(1,3,2,4)

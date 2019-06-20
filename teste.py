@@ -1,4 +1,4 @@
-from Transport.Socket import *
+from transport.Socket import *
 
 sla = Socket()
 
