@@ -20,6 +20,7 @@ class TransportLayer:
     def closeSocket(self, socket):
         self.freePorts.append(socket.sourcePort)
         self.openSockets.remove(socket)
+        self.networkLayer.physicalLayer.close()
 
     def demux(self, data, sourceIp, sourcePort):
         for socket in self.openSockets:

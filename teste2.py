@@ -5,6 +5,9 @@ print(sla2.sourceIp, sla2.sourcePort)
 
 sla2.accept()
 
-for i in range(2000):
-    data = sla2.rcvSegment()
-    print("teste2", data.data)
+while True:
+    if len(sla2.appBuffer):
+        data = sla2.appBuffer.pop(0)
+        print(data)
+
+# sla2.close()

@@ -17,8 +17,9 @@ class SocketState(Enum):
 
 
 class Socket:
-    WINDOW_SIZE = 20
-    MAX_SEQNUM = 1024
+    WINDOW_SIZE = 10
+    MAX_SEQNUM = 20
+    MAX_TIMEOUT = 3
 
     def __init__(self, sourceIp="localhost", sourcePort=0):
         self.transportLayer = TransportLayer(sourcePort)
@@ -30,30 +31,34 @@ class Socket:
         self.sourcePort = sourcePort
         self.transportLayer.initPort(self.sourceIp, self.sourcePort)
         self.destinationAddress = None
-
-        self.timeoutInterval = 0.5  # Tempo de espera para um pacote ser enviado e receber um ACK
-        # Tempo de espera para alguma mensagem da camada de rede - igual a 0 bloqueia a thread de conexao
-        self.timeoutRcv = 0
-
+        
         self.state = SocketState.CLOSED
-        # Buffer de segmentos q precisam ser enviados. Buffer, pois janela pode encher
+
+        self.numTimeOuts = 0
+        self.timeoutInterval = 1  # Tempo de espera para um pacote ser enviado e receber um ACK        
+        self.timeoutRcv = 0 # Tempo de espera para alguma mensagem da camada de rede - igual a 0 bloqueia a thread de conexao
         self.timerList = []
-        self.sendBuffer = []
-        self.transmissions = list([None, False] for i in range(
+
+        self.transmissions = list([None, False, 0] for i in range(
             Socket.MAX_SEQNUM))  # [ Packet, Enviado ou não ]
         self.packetRecieveList = list(None for i in range(
             Socket.MAX_SEQNUM))
         self.acknoleged = list(False for i in range(
             Socket.MAX_SEQNUM))
-        self.send_base = 0
+
         self.nextSequenceNumber = random.randint(0, Socket.MAX_SEQNUM)
         self.nextAckNumber = 0
+
         self.rcvBuffer = []
         self.rcv_base = 0
+        self.sendBuffer = [] # Buffer de segmentos q precisam ser enviados. Buffer, pois janela pode encher
+        self.send_base = 0
 
         self.thread = threading.Thread(target=self.stateMachine)
-
         self.transportLayer.addSocket(self)
+
+
+        self.appBuffer = [] # PARA TESTEEEE
 
     def connect(self, ip, port):
         self.destinationAddress = (ip, port)
@@ -77,10 +82,6 @@ class Socket:
             if(segment == None):
                 continue
 
-            print(segment.SYN)
-            print(segment.ackNumber, self.nextAckNumber)
-            print(self.isMine(segment))
-
             if (segment.SYN == True and segment.ackNumber == self.nextAckNumber):
                 self.send_base = self.increment(self.send_base)
                 self.state = SocketState.ESTABLISHED
@@ -101,24 +102,19 @@ class Socket:
         self.transportLayer.closeSocket(self)
 
     def send(self, data):
-        # print(data)
+        if self.state == SocketState.CLOSED:
+            raise ConnectionError
         self.sendBuffer.insert(0, data)  # Segmento é criado depois
 
     def rcvSegment(self, amount_time=0):
-        # self.rcvBuffer.clear()
         timeNow = time.time()
-        while (amount_time and time.time() - timeNow < amount_time) or True:
+        while (amount_time and time.time() - timeNow < amount_time) or (amount_time == 0 and True):
+            if self.state == SocketState.CLOSED:
+                raise ConnectionError
+
             if len(self.rcvBuffer):
                 return self.rcvBuffer.pop(0)
         return None
-
-    def recieve(self):
-        while True:
-            if len(self.rcvBuffer):
-                data = self.rcvBuffer[0]
-                self.rcvBuffer.pop(0)
-                return data
-
 
     def isInSendInterval(self, Next):
         if(self.send_base < (self.send_base + Socket.WINDOW_SIZE) % Socket.MAX_SEQNUM):
@@ -132,11 +128,12 @@ class Socket:
 
     def stateMachine(self):
         while self.state != SocketState.CLOSED:
-            print(self.sendBuffer)
+            print('stateMachine')
+            # print('trans: ', self.transmissions)
             # Verifica se pode enviar algo
-            if len(self.sendBuffer) > 0:
+            if len(self.sendBuffer):
                 if self.isInSendInterval(self.nextSequenceNumber):
-                    print("enviou ", self.nextSequenceNumber)
+                    # print("enviou ", self.nextSequenceNumber)
                     packet = self.makeSegment(
                         self.nextSequenceNumber, data=self.sendBuffer[0])
                     self.networkLayer.sendDatagram(packet, self, self.destinationAddress)
@@ -146,26 +143,29 @@ class Socket:
                     self.nextSequenceNumber = self.increment(
                         self.nextSequenceNumber)
                     self.sendBuffer.pop(0)
+
             # Verifica recebimento de ACK
             segment = self.rcvSegment(1)
-            # TODO: verificar checksum
+            # TO DO: verificar checksum
             n = None
             if segment != None:
                 n = segment.ackNumber
                 if n != None:
-                    print("ack ", n)
+                    # print("ack ", n)
                     self.transmissions[n][1] = True
                     self.stopTimer(n)
+                    self.numTimeOuts = 0
                     while self.transmissions[self.send_base][1]:
-                        print("send base ",self.send_base)
+                        # print("send base ",self.send_base)
                         self.transmissions[self.send_base][1] = False
                         self.transmissions[self.send_base][0] = None
                         self.send_base = self.increment(
                             self.send_base)
                 else:
                     n = segment.sequenceNumber
+                    self.appBuffer.append(segment.data)
                     ack = self.makeSegment(ackNumber=n)
-                    print("ack %d sent" %(n))
+                    # print("ack %d sent" %(n))
                     self.networkLayer.sendDatagram(ack, self, self.destinationAddress)
                     if(self.isInRecieveInterval(n)):
                         self.packetRecieveList[n] = segment
@@ -183,18 +183,22 @@ class Socket:
             index = self.send_base
             while index != (self.send_base+Socket.WINDOW_SIZE) % Socket.MAX_SEQNUM:
                 if self.transmissions[index][0] != None and not self.transmissions[index][1] and self.isTimeout(index):
-                    print("reenviou ", index)
+                    # print("reenviou ", index)
                     self.networkLayer.sendDatagram(self.transmissions[index][0], self, self.destinationAddress)
                     self.startTimer(self.timeoutInterval,
                                     self.transmissions[index][0].sequenceNumber)
+                    self.numTimeOuts += 1
                 index = self.increment(index)
+            
+            if self.numTimeOuts > self.MAX_TIMEOUT:
+                self.close()
 
     def listen(self):
         self.state = SocketState.LISTEN
 
     def accept(self):
         while True:
-            segment = self.rcvSegment(20)
+            segment = self.rcvSegment()
             # TODO: checar se n tiver corrupto
             if segment != None and segment.SYN:
                 self.destinationAddress = (segment.sourceIp, segment.sourcePort)
@@ -202,8 +206,9 @@ class Socket:
                 self.rcv_base = segment.sequenceNumber
                 self.sendSYNACK()
                 break
+        self.state = SocketState.ESTABLISHED
         self.thread.start()
-        print("Conexão estabelecida!")
+        print('Conexao estabelecida!')
 
     def sendSYNACK(self):
         newSegment = Segment(self, self.destinationAddress)

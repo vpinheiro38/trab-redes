@@ -39,3 +39,6 @@ class PhysicalLayer:
         if len(self.rcvBuffer):
             return self.rcvBuffer.pop(0)
         return None
+
+    def close(self):
+        self.udp.close()
