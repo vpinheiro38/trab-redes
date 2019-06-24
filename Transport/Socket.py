@@ -1,7 +1,6 @@
 from transport.Checksum import makeChecksum
-from transport.TransportLayer import tcp
+from transport.TransportLayer import TransportLayer
 from transport.Segment import Segment
-from network.network import *
 from itertools import chain
 import threading
 import random
@@ -22,9 +21,12 @@ class Socket:
     MAX_SEQNUM = 1024
 
     def __init__(self, sourceIp="0.0.0.0", sourcePort=0):
+        self.transportLayer = TransportLayer()
+        self.networkLayer = self.transportLayer.networkLayer
+
         self.sourceIp = sourceIp
         if sourcePort == 0:
-            sourcePort = tcp.getFreePort()
+            sourcePort = self.transportLayer.getFreePort()
         self.sourcePort = sourcePort
         self.destinationSocket = None
 
@@ -57,10 +59,11 @@ class Socket:
         synSegment.sequenceNumber = self.nextSequenceNumber
         self.send_base = self.nextSequenceNumber
         self.nextAckNumber = self.nextSequenceNumber
-        network.udt_send(synSegment)
+        self.networkLayer.sendDatagram(synSegment, self, self.destinationSocket)
+        self.state = SocketState.SYN_SENT
 
         self.nextSequenceNumber = self.increment(self.nextSequenceNumber)
-        self.state = SocketState.SYN_SENT
+
         self.timeoutRcv = 5
         print("SYN enviado")
         currentTry = 0
@@ -68,7 +71,7 @@ class Socket:
             currentTry += 1
             timeNow = time.time()
             while ((time.time() - timeNow) < self.timeoutRcv):
-                segment = network.udt_rcv(self, 0.3)
+                segment = self.rcvSegment()
                 if(segment == None):
                     continue
                 print(segment.SYN)
@@ -80,7 +83,7 @@ class Socket:
                     newSegment = self.makeSegment(
                         self.nextSequenceNumber, segment.sequenceNumber)
                     self.rcv_base = self.increment(segment.sequenceNumber)
-                    network.udt_send(newSegment)
+                    self.networkLayer.sendDatagram(newSegment, self, self.destinationSocket)
                     self.thread.start()
                     return
 
@@ -89,11 +92,18 @@ class Socket:
             self.destinationPort = None
             raise TimeoutError
 
-    # def close(self):
+    def close(self):
+        self.state = SocketState.CLOSED
+        self.transportLayer.closeSocket(self)
 
     def send(self, data):
         print(data)
         self.sendBuffer.insert(0, data)  # Segmento é criado depois
+
+    def rcvSegment(self):
+        if self.rcvBuffer > 0:
+            return self.rcvBuffer.pop(0)
+        return None
 
     def recieve(self):
         while True:
@@ -114,14 +124,16 @@ class Socket:
         return not (Next < self.rcv_base and Next > (self.rcv_base + Socket.WINDOW_SIZE) % Socket.MAX_SEQNUM)
 
     def stateMachine(self):
-        while True:
+        self.transportLayer.addSocket(self)
+
+        while self.state != SocketState.CLOSED:
             # Verifica se pode enviar algo
             if len(self.sendBuffer) > 0:
                 if self.isInSendInterval(self.nextSequenceNumber):
                     print("enviou ", self.nextSequenceNumber)
                     packet = self.makeSegment(
                         self.nextSequenceNumber, data=self.sendBuffer[0])
-                    network.udt_send(packet)
+                    self.networkLayer.se(packet)
                     self.startTimer(self.timeoutInterval,
                                     self.nextSequenceNumber)
                     self.transmissions[self.nextSequenceNumber][0] = packet
@@ -230,3 +242,6 @@ class Socket:
                           sequenceNumber, ackNumber, data)
         #seg.checksum = makeChecksum(data, amountCheckBits, gen)
         return segment
+
+    def appendBuffer(self, segment):
+        self.rcvBuffer.append(segment)

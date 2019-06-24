@@ -32,7 +32,7 @@ class PhysicalLayer:
 
         udp.close()
 
-    def getBits(self):
+    def getData(self):
         if self.rcvBuffer.count() > 0:
             return self.rcvBuffer.pop(0)
         return None
