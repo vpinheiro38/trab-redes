@@ -1,8 +1,6 @@
 class Datagram:
-    def __init__(self, segment, destAddress, srcAddress, headerChecksum):
-        self.destinationIP = destAddress[0]
-        self.destinationPort = destAddress[1]
-        self.sourceIP = srcAddress[0]
-        self.sourcePort = srcAddress[1]
-        self.headerChecksum = None
+    def __init__(self, segment, destAddress, srcAddress, headerChecksum=None):
+        self.destinationIP = destAddress
+        self.sourceIP = srcAddress
+        self.headerChecksum = headerChecksum
         self.segment = segment
