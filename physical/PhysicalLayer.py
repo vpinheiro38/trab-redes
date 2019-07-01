@@ -11,10 +11,14 @@ class PhysicalLayer:
         # self.thread.start()
 
     def initPort(self, ip, port):
-        self.selectedIP = ip
-        self.selectedPort = port
-        self.udp.bind((self.selectedIP, self.selectedPort))
-        self.thread.start()
+        try:
+            self.selectedIP = ip
+            self.selectedPort = port
+            self.udp.bind((self.selectedIP, self.selectedPort))
+            self.thread.start()
+            return True
+        except:
+            return False
 
     def sendBits(self, data, destAddress):
         if self.selectedPort == 0:

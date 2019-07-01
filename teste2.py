@@ -1,13 +1,21 @@
 from transport.Socket import *
+import threading
 sla2 = Socket("localhost", 5001)
 
-print(sla2.sourceIp, sla2.sourcePort)
+def server(conn):
+    while True:
+        if len(conn.appBuffer):
+            data = conn.appBuffer.pop(0)
+            print(data)
 
-sla2.accept()
+print(sla2.sourceIp, sla2.sourcePort)
+sla2.listen()
 
 while True:
-    if len(sla2.appBuffer):
-        data = sla2.appBuffer.pop(0)
-        print(data)
+    socket = sla2.accept()
+    thread = threading.Thread(target=server, args=(socket, ))
+    thread.start()
+
+
 
 # sla2.close()

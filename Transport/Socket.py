@@ -21,15 +21,18 @@ class Socket:
     MAX_SEQNUM = 20
     MAX_TIMEOUT = 3
 
-    def __init__(self, sourceIp="localhost", sourcePort=0):
-        self.transportLayer = TransportLayer(sourcePort)
+    def __init__(self, sourceIp="localhost", sourcePort=0, transportLayer=None):
+        self.transportLayer = transportLayer
+
+        if self.transportLayer == None:
+            self.transportLayer = TransportLayer(sourcePort)
+
         self.networkLayer = self.transportLayer.networkLayer
 
         self.sourceIp = sourceIp
-        if sourcePort == 0:
-            sourcePort = self.transportLayer.getFreePort()
         self.sourcePort = sourcePort
-        self.transportLayer.initPort(self.sourceIp, self.sourcePort)
+        if (transportLayer == None):
+            self.sourcePort = self.transportLayer.initPort(self.sourceIp, self.sourcePort)
         self.destinationAddress = None
         
         self.state = SocketState.CLOSED
@@ -128,7 +131,7 @@ class Socket:
 
     def stateMachine(self):
         while self.state != SocketState.CLOSED:
-            print('stateMachine')
+            # print('stateMachine')
             # print('trans: ', self.transmissions)
             # Verifica se pode enviar algo
             if len(self.sendBuffer):
@@ -197,19 +200,29 @@ class Socket:
         self.state = SocketState.LISTEN
 
     def accept(self):
+        threadSocket = None
         while True:
             segment = self.rcvSegment()
+
             # TODO: checar se n tiver corrupto
             if segment != None and segment.SYN:
-                self.destinationAddress = (segment.sourceIp, segment.sourcePort)
-                print(self.destinationAddress)
-                self.rcv_base = segment.sequenceNumber
-                self.sendSYNACK()
+                print('a')
+                threadSocket = Socket('localhost', 5001, transportLayer=self.transportLayer)
+                print('a')
+                threadSocket.destinationAddress = (segment.sourceIp, segment.sourcePort)
+                print('a')
+                threadSocket.state = SocketState.ESTABLISHED
+                print('a')
+                threadSocket.thread.start()
+                
+                print('1', threadSocket.destinationAddress)
+                threadSocket.rcv_base = segment.sequenceNumber
+                threadSocket.sendSYNACK()
                 break
-        self.state = SocketState.ESTABLISHED
-        self.thread.start()
-        print('Conexao estabelecida!')
+        
 
+        print('Conexao estabelecida!')
+        return threadSocket
     def sendSYNACK(self):
         newSegment = Segment(self, self.destinationAddress)
         newSegment.SYN = True
