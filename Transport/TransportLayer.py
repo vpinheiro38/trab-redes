@@ -31,7 +31,6 @@ class TransportLayer:
         self.openSockets.remove(socket)
 
     def demux(self, data, sourceIp, sourcePort):
-        print(data, sourceIp, sourcePort)
         if sourceIp == '127.0.0.1':
             sourceIp = 'localhost'
         for socket in self.openSockets:
@@ -41,13 +40,10 @@ class TransportLayer:
                     socket.destinationAddress[0] == sourceIp and
                     socket.destinationAddress[1] == sourcePort) 
                 and socket.sourcePort == data.destinationPort):
-                print('1', socket)
                 socket.appendBuffer(data)
                 return
 
         for socket in self.openSockets:            
             if socket.destinationAddress == None:
                 socket.appendBuffer(data)
-                print('2', socket)
                 return
-        print(self.openSockets)

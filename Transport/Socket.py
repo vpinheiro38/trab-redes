@@ -1,4 +1,4 @@
-from transport.Checksum import makeChecksum
+from transport.ComplementChecksum import makeChecksum, isCorrupt
 from transport.TransportLayer import TransportLayer
 from transport.Segment import Segment
 from itertools import chain
@@ -49,7 +49,7 @@ class Socket:
         self.acknoleged = list(False for i in range(
             Socket.MAX_SEQNUM))
 
-        self.nextSequenceNumber = random.randint(0, Socket.MAX_SEQNUM)
+        self.nextSequenceNumber = random.randint(0, Socket.MAX_SEQNUM-1)
         self.nextAckNumber = 0
 
         self.rcvBuffer = []
@@ -69,6 +69,7 @@ class Socket:
         synSegment = Segment(self, self.destinationAddress)
         synSegment.SYN = True
         synSegment.sequenceNumber = self.nextSequenceNumber
+        synSegment.checksum = makeChecksum(synSegment)
         self.send_base = self.nextSequenceNumber
         self.nextAckNumber = self.nextSequenceNumber
         self.networkLayer.sendDatagram(synSegment, self, self.destinationAddress)
@@ -81,7 +82,7 @@ class Socket:
         currentTry = 0
         while(currentTry < 3):
             currentTry += 1
-            segment = self.rcvSegment(5)    
+            segment = self.rcvSegment(5)
             if(segment == None):
                 continue
 
@@ -116,7 +117,11 @@ class Socket:
                 raise ConnectionError
 
             if len(self.rcvBuffer):
-                return self.rcvBuffer.pop(0)
+                data = self.rcvBuffer.pop(0)
+                checksum = data.checksum
+                data.checksum = 0
+                if not isCorrupt(data, checksum):
+                    return data
         return None
 
     def isInSendInterval(self, Next):
@@ -131,8 +136,6 @@ class Socket:
 
     def stateMachine(self):
         while self.state != SocketState.CLOSED:
-            # print('stateMachine')
-            # print('trans: ', self.transmissions)
             # Verifica se pode enviar algo
             if len(self.sendBuffer):
                 if self.isInSendInterval(self.nextSequenceNumber):
@@ -149,7 +152,7 @@ class Socket:
 
             # Verifica recebimento de ACK
             segment = self.rcvSegment(1)
-            # TO DO: verificar checksum
+            # TODO: verificar checksum
             n = None
             if segment != None:
                 n = segment.ackNumber
@@ -206,20 +209,14 @@ class Socket:
 
             # TODO: checar se n tiver corrupto
             if segment != None and segment.SYN:
-                print('a')
                 threadSocket = Socket('localhost', 5001, transportLayer=self.transportLayer)
-                print('a')
                 threadSocket.destinationAddress = (segment.sourceIp, segment.sourcePort)
-                print('a')
                 threadSocket.state = SocketState.ESTABLISHED
-                print('a')
                 threadSocket.thread.start()
                 
-                print('1', threadSocket.destinationAddress)
                 threadSocket.rcv_base = segment.sequenceNumber
                 threadSocket.sendSYNACK()
                 break
-        
 
         print('Conexao estabelecida!')
         return threadSocket
@@ -231,6 +228,7 @@ class Socket:
         self.send_base = random.randint(
             0, Socket.MAX_SEQNUM)
         newSegment.sequenceNumber = self.send_base
+        newSegment.checksum = makeChecksum(newSegment)
         self.networkLayer.sendDatagram(newSegment, self, self.destinationAddress)
 
     def isTimeout(self, seqnum):
@@ -263,7 +261,8 @@ class Socket:
     def makeSegment(self, sequenceNumber=None, ackNumber=None, data=None):
         segment = Segment(self, self.destinationAddress,
                           sequenceNumber, ackNumber, data)
-        #seg.checksum = makeChecksum(data, amountCheckBits, gen)
+
+        segment.checksum = makeChecksum(segment)
         return segment
 
     def appendBuffer(self, segment):
