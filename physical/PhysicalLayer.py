@@ -2,7 +2,8 @@ import socket, pickle
 import threading
 
 class PhysicalLayer:
-    def __init__(self, ip='localhost', port=0):
+    def __init__(self, link, ip='localhost', port=0):
+        self.linkLayer = link
         self.udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.selectedIP = ip
         self.selectedPort = port
@@ -37,12 +38,12 @@ class PhysicalLayer:
         while True:
             data_bytes = self.udp.recvfrom(1024)
             data = (pickle.loads(data_bytes[0]), data_bytes[1])
-            self.rcvBuffer.append(data)
+            self.linkLayer.rcvBuffer.append(data)
 
-    def getData(self):
-        if len(self.rcvBuffer):
-            return self.rcvBuffer.pop(0)
-        return None
+    # def getData(self):
+    #     if len(self.rcvBuffer):
+    #         return self.rcvBuffer.pop(0)
+    #     return None
 
     def close(self):
         self.udp.close()
