@@ -3,6 +3,7 @@ import threading
 from api import Queue
 from api import Client
 from transport.Socket import Socket
+import time
 
 ID = 0
 clientQueue = Queue()
@@ -39,13 +40,14 @@ def sendClientP2PMessage(conn, message):
 def checkClientMessage(clientThread, client_socket, message, addr, id):
     msg = message.split()
     if (msg[0] == 'AVAILABLE' and clientThread == None):
+        port = 0
         if(id):
-            addr = askForSocket(client_socket)
-            addr[1] = int(addr[1])
+            port = int(askForSocket(client_socket))
         else:
             sendClientP2PMessage(client_socket, "TRY_CONNECTION") # id 0
+            time.sleep(1)
 
-        client = Client(addr, client_socket, id)
+        client = Client(addr, client_socket, id, port=port)
         clientQueue.enqueue(client)
         print('[*] Cliente %s:%d disponível' % (addr[0], addr[1]))
         checkQueue()
@@ -60,9 +62,14 @@ def checkClientMessage(clientThread, client_socket, message, addr, id):
 
 def askForSocket(clientSocket):
     sendClientP2PMessage(clientSocket, "WAIT_CONNECTION") # id 1
+    time.sleep(1)
     request = getClientP2PMessage(clientSocket)
     request = request.split()
-    return request[1:]
+    print(request)
+    if len(request) > 0 and request[0] != 'CLOSE_CONNECTION':
+        return request[1]
+    else:
+        raise ConnectionError
 
 def handle_client(client_socket, addr, ID):
     close = False
@@ -93,10 +100,10 @@ def makeAvailability(client1, client2):
 
     if(client1.id):
         ip = client1.getIP()
-        port = client1.getPort()
+        port = client1.p2pPort
     else:
         ip = client2.getIP()
-        port = client2.getPort()
+        port = client2.p2pPort
 
     conn1 = client1.getServerConnection()
     conn2 = client2.getServerConnection()
@@ -147,7 +154,7 @@ while True:
     ID = (ID == 0)
     print('[*] Conexão aceita de : %s:%d' % (addr[0], addr[1]))
     client_handler = threading.Thread(
-        target=handle_client, args=(client, addr,ID))
+        target=handle_client, args=(client, addr, ID))
     client_handler.start()
 
     checkQueue()

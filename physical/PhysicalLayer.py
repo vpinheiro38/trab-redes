@@ -27,7 +27,7 @@ class PhysicalLayer:
 
         dest = (destAddress[0], destAddress[1])
         data_bytes = pickle.dumps(data)
-        # print("SendBits: ", data, dest)
+        # print("SendBits: ", data.segment.data, dest)
         self.udp.sendto(data_bytes, (dest))
         return True
 
@@ -39,6 +39,7 @@ class PhysicalLayer:
             data_bytes = self.udp.recvfrom(1024)
             data = (pickle.loads(data_bytes[0]), data_bytes[1])
             self.linkLayer.rcvBuffer.append(data)
+            # print(data)
 
     # def getData(self):
     #     if len(self.rcvBuffer):

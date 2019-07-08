@@ -29,8 +29,9 @@ class Queue:
 
 
 class Client:
-    def __init__(self, addr, server_conn, id):
+    def __init__(self, addr, server_conn, id, port=0):
         self.addr = addr
+        self.p2pPort = port
         self.server_conn = server_conn
         self.id = id
 

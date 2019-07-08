@@ -3,21 +3,23 @@ import socket
 import time
 import threading
 from transport.Socket import Socket
+from transport.TransportLayer import *
 
 
 class App:
     def __init__(self):
+        self.transportLayer = None
         self.connectionState = NET.INICIO
         self.serverSocket = None
         self.opponentAddr = {}
         self.oppConnMode = None
         self.p2pSocket = None
-        self.choosenSocket = None
+        self.choosenPort = 0
         self.response = None
 
     def conectToServer(self):
         try:
-            self.serverSocket = Socket()
+            self.serverSocket = Socket()            
             self.serverSocket.connect("localhost", 5001)
             # self.serverSocket.setblocking(False)
             self.connectionState = NET.BUSCANDO_ADVERSARIO
@@ -47,39 +49,42 @@ class App:
             return False
 
     def searchOpponent(self):
-        print('AA')
         self.sendMessage(self.serverSocket, 'AVAILABLE')
-        print('BB')
+
+        print('AA')
 
         timeNow = time.time()
         response = ''
         while (response in ['', False, None]) and time.time() - timeNow < 20:
             response = self.getMessage(self.serverSocket)
+            # print(response)
             if response == 'CLOSE_CONNECTION':
                 return False
+
+        print('BB')
 
         response = str(response).split()
         if len(response) == 1 and response[0] == 'WAIT_CONNECTION':
             print("RESPOSTINHA ", response)
-            self.choosenSocket = self.getSocketP2P()
-            addr = self.choosenSocket.getsockname()
+            self.choosenPort = self.getPortP2P(self.serverSocket)
             self.oppConnMode = 'WAIT_CONNECTION'
-            self.sendMessage(self.serverSocket, 'SOCKET %s %s' % (str(addr[0]), str(addr[1])))
+            self.sendMessage(self.serverSocket, 'SOCKET %d' % (self.choosenPort))
         elif len(response) == 1 and response[0] == 'TRY_CONNECTION':
             self.oppConnMode = 'TRY_CONNECTION'
+            print('TRY')
         else:
             return False
 
         response = ''
         timeNow = time.time()
-        while (response == '' or response == False) and time.time() - timeNow < 20:
+        while response in ['', False, None] and time.time() - timeNow < 20:
             response = self.getMessage(self.serverSocket)
-            if (response == False):
-                pass
-            elif response == 'CLOSE_CONNECTION':
+            if response == 'CLOSE_CONNECTION':
+                print('DD')
                 return False
 
         response = str(response).split()
+        print('split: ', response)
         if len(response) == 3 and response[0] == 'CONNECT':
             self.sendMessage(self.serverSocket, 'TRYING_TO_PLAY')
             print("addr ", response[1], response[2])
@@ -88,6 +93,7 @@ class App:
             self.connectionState = NET.ADVERSARIO_ENCONTRADO
             return True
 
+        print('TT')
         return False
 
     def conectaAdversario(self):
@@ -96,7 +102,7 @@ class App:
                 self.opponentAddr[0], int(self.opponentAddr[1]))
             print('Sucesso?', success)
         else:
-            success = self.waitConnection(self.choosenSocket)
+            success = self.createServerP2P('localhost', self.choosenPort)
             print('Sucesso?', success)
         if(success == True):
             self.sendMessage(self.serverSocket, 'PLAYING')
@@ -107,22 +113,13 @@ class App:
         return False
 
     def createServerP2P(self, ip, port):
-
         connectionSocket = Socket(ip, port)
         print("[*] Escutando  %s : %d" % (ip, port))
         # connectionSocket.bind((ip, port))
         connectionSocket.listen()
-    def getSocketP2P(self):
-        connectionSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        connectionSocket.bind(('localhost', 0))
-        choosenSocket = connectionSocket.getsockname()
-        print("[*] Escutando  %s : %d" % (choosenSocket[0], choosenSocket[1]))
-        connectionSocket.listen(5)
-        return connectionSocket
 
-    def waitConnection(self, connectionSocket):
         try:
-            self.p2pSocket, addr = connectionSocket.accept()
+            self.p2pSocket, addr = connectionSocket.accept(10, port)
             print('Connection accepted', addr)
             connectionThread = threading.Thread(
                 target=self.handle_conn)
@@ -132,7 +129,9 @@ class App:
         except:
             return False
 
-        return True
+    def getPortP2P(self, socket):
+        port = socket.transportLayer.getFreePort()
+        return port
 
     def connectAsClientP2P(self, ip, port):
         self.p2pSocket = Socket()
@@ -161,19 +160,20 @@ class App:
             if (response != False):
                 if (response == ''):
                     break
-                print('[*] Recebido: %s' % response)
-                self.response = response
+                if response != None:
+                    print('[*] Recebido: %s' % response)
+                    self.response = response
 
         self.p2pSocket.close()
 
     def closeServerConnection(self):
-        print("Closing conection: ", self.serverSocket)
+        print("Closing conection: ", self.serverSocket.destinationAddress)
         self.serverSocket.close()
         self.connectionState = NET.INICIO
 
     def closeP2PConnection(self):
         self.sendMessage(self.p2pSocket, 'CLOSE_CONNECTION')
-        print("Closing conection: ", self.p2pSocket)
+        print("Closing conection: ", self.p2pSocket.destinationAddress)
         self.p2pSocket.close()
         self.connectionState = NET.INICIO
 

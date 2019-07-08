@@ -34,7 +34,7 @@ class TransportLayer:
         if sourceIp == '127.0.0.1':
             sourceIp = 'localhost'
         for socket in self.openSockets:
-            # print('Demux: ', socket.destinationAddress, (socket.sourceIp, socket.sourcePort), sourceIp, sourcePort, data.destinationPort)
+            print('Demux: ', socket.destinationAddress, (socket.sourceIp, socket.sourcePort), sourceIp, sourcePort, data.destinationPort)
             
             if ((socket.destinationAddress != None and 
                     socket.destinationAddress[0] == sourceIp and
