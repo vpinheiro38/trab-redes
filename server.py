@@ -3,30 +3,35 @@ import socket
 import threading
 from api import Queue
 from api import Client
+from transport.Socket import Socket
 
 clientQueue = Queue()
-bind_ip = ''
-bind_port = 5100
+bind_ip = 'localhost'
+bind_port = 5001
 sizeofmessage = 1024
 
 threadLock = threading.Lock()
-tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-tcp.bind((bind_ip, bind_port))
-tcp.listen(5)
+tcp = Socket(bind_ip, bind_port)
+tcp.listen()
 
 print('[*] Escutando %s:%d' % (bind_ip, bind_port))
 
 
 def getClientP2PMessage(conn):
     try:
-        return conn.recv(sizeofmessage).decode()
+        # return conn.recv(sizeofmessage).decode()
+        data = conn.getData()
+        while data == None:
+            data = conn.getData()
+        
+        return data
     except:
         return ''
 
 
 def sendClientP2PMessage(conn, message):
     try:
-        conn.send(message.encode())
+        conn.send(message)
     except:
         print('[*] Mensagem não enviada - %s' % message)
 
@@ -56,7 +61,7 @@ def handle_client(client_socket, addr):
         request = getClientP2PMessage(client_socket)
         print('[*] Recebido: %s' % request)
 
-        if request != '':
+        if request != '' and request != 'CLOSE_CONNECTION':
             clientThread, close = checkClientMessage(
                 clientThread, client_socket, request, addr)
         else:
@@ -72,7 +77,7 @@ def handle_client(client_socket, addr):
 def makeAvailability(client1, client2):
     global clientQueue
     ip1 = client1.getIP()
-    port1 = 5101
+    port1 = 5100
     conn1 = client1.getServerConnection()
     conn2 = client2.getServerConnection()
 

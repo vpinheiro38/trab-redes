@@ -101,9 +101,14 @@ class Socket:
             self.destinationPort = None
             raise TimeoutError
 
-    def close(self):
+    def close(self, isReceiver=False):
+        if not isReceiver:
+            self.send('CLOSE_CONNECTION')
+        rcv = self.rcvSegment(5) # Para esperar 5 segundos
+        # if rcv == "CLOSE_CONNECTION":
         self.state = SocketState.CLOSED
         self.transportLayer.closeSocket(self)
+
 
     def send(self, data):
         if self.state == SocketState.CLOSED:
@@ -169,6 +174,8 @@ class Socket:
                             self.send_base)
                 else:
                     n = segment.sequenceNumber
+                    if segment.data == 'CLOSE_CONNECTION':
+                        self.close(True)
                     self.appBuffer.append(segment.data)
                     ack = self.makeSegment(ackNumber=n)
                     # print("ack %d sent" %(n))
@@ -219,7 +226,7 @@ class Socket:
                 break
 
         print('Conexao estabelecida!')
-        return threadSocket
+        return threadSocket, threadSocket.destinationAddress
     def sendSYNACK(self):
         newSegment = Segment(self, self.destinationAddress)
         newSegment.SYN = True
@@ -267,3 +274,8 @@ class Socket:
 
     def appendBuffer(self, segment):
         self.rcvBuffer.append(segment)
+
+    def getData(self):
+        if len(self.appBuffer):
+            return self.appBuffer.pop(0)
+        return None
