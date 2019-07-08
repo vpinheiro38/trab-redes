@@ -1,10 +1,10 @@
-
 import socket
 import threading
 from api import Queue
 from api import Client
 from transport.Socket import Socket
 
+ID = 0
 clientQueue = Queue()
 bind_ip = 'localhost'
 bind_port = 5001
@@ -36,10 +36,16 @@ def sendClientP2PMessage(conn, message):
         print('[*] Mensagem não enviada - %s' % message)
 
 
-def checkClientMessage(clientThread, client_socket, message, addr):
+def checkClientMessage(clientThread, client_socket, message, addr, id):
     msg = message.split()
     if (msg[0] == 'AVAILABLE' and clientThread == None):
-        client = Client(addr, client_socket)
+        if(id):
+            addr = askForSocket(client_socket)
+            addr[1] = int(addr[1])
+        else:
+            sendClientP2PMessage(client_socket, "TRY_CONNECTION") # id 0
+
+        client = Client(addr, client_socket, id)
         clientQueue.enqueue(client)
         print('[*] Cliente %s:%d disponível' % (addr[0], addr[1]))
         checkQueue()
@@ -52,8 +58,13 @@ def checkClientMessage(clientThread, client_socket, message, addr):
 
     return clientThread, False
 
+def askForSocket(clientSocket):
+    sendClientP2PMessage(clientSocket, "WAIT_CONNECTION") # id 1
+    request = getClientP2PMessage(clientSocket)
+    request = request.split()
+    return request[1:]
 
-def handle_client(client_socket, addr):
+def handle_client(client_socket, addr, ID):
     close = False
     clientThread = None
 
@@ -63,7 +74,7 @@ def handle_client(client_socket, addr):
 
         if request != '' and request != 'CLOSE_CONNECTION':
             clientThread, close = checkClientMessage(
-                clientThread, client_socket, request, addr)
+                clientThread, client_socket, request, addr, ID)
         else:
             close = True
 
@@ -76,18 +87,28 @@ def handle_client(client_socket, addr):
 
 def makeAvailability(client1, client2):
     global clientQueue
-    ip1 = client1.getIP()
-    port1 = 5100
+
+    ip = 0
+    port = 0
+
+    if(client1.id):
+        ip = client1.getIP()
+        port = client1.getPort()
+    else:
+        ip = client2.getIP()
+        port = client2.getPort()
+
     conn1 = client1.getServerConnection()
     conn2 = client2.getServerConnection()
-
+    
     try:
-        sendClientP2PMessage(conn1, 'WAIT_CONNECTION %s %s' % (ip1, port1))
+        sendClientP2PMessage(conn1, 'CONNECT %s %s' % (ip, port))
     except:
         clientQueue.delete(client1)
         return False
+
     try:
-        sendClientP2PMessage(conn2, 'TRY_CONNECTION %s %s' % (ip1, port1))
+        sendClientP2PMessage(conn2, 'CONNECT %s %s' % (ip, port))
 
     except:
         clientQueue.delete(client2)
@@ -123,9 +144,10 @@ def checkQueue():
 
 while True:
     client, addr = tcp.accept()
+    ID = (ID == 0)
     print('[*] Conexão aceita de : %s:%d' % (addr[0], addr[1]))
     client_handler = threading.Thread(
-        target=handle_client, args=(client, addr,))
+        target=handle_client, args=(client, addr,ID))
     client_handler.start()
 
     checkQueue()

@@ -20,6 +20,7 @@ def closeWindow():
     app.closeP2PConnection()
     sys.exit()
 
+
 def Game():
     global closeWindow
     global message, canvas, tcp
@@ -260,12 +261,6 @@ def Game():
 
         if(inside(click, iniciarJogo)):
             app.connectionState = NET.CONECTANDO_SERVIDOR
-
-    def closeTcpConnection():
-        global tcp
-        tcp.close()
-        tcp = None
-        app.connectionState = NET.INICIO
 
     def setWaitText(string):
         text = Text(Point(WIDTH/2, 2*HEIGHT/3), string)
